@@ -6,7 +6,7 @@ export const stateDir = "userlocal";
 export const attemptsPath = join(stateDir, "attempts.csv");
 export const summaryPath = join(stateDir, "summary.csv");
 
-const attemptsHeader = "question_id,outcome,updated_at";
+const attemptsHeader = "question_id,outcome,updated_at,elapsed_seconds";
 const summaryHeader = "metric,value,updated_at";
 
 export async function ensureStateFiles(): Promise<void> {
@@ -22,12 +22,17 @@ export async function loadAttempts(path = attemptsPath): Promise<Map<string, Att
   const attempts = new Map<string, Attempt>();
 
   for (const row of rows.slice(1)) {
-    const [question_id, outcome, updated_at] = row;
+    const [question_id, outcome, updated_at, elapsed_seconds] = row;
     if (!question_id || !isOutcome(outcome) || !updated_at) {
       continue;
     }
 
-    attempts.set(question_id, { question_id, outcome, updated_at });
+    attempts.set(question_id, {
+      question_id,
+      outcome,
+      updated_at,
+      elapsed_seconds: readElapsedSeconds(elapsed_seconds),
+    });
   }
 
   return attempts;
@@ -37,7 +42,7 @@ export async function saveAttempts(attempts: Map<string, Attempt>, path = attemp
   await mkdir(dirname(path), { recursive: true });
   const rows = [...attempts.values()]
     .sort((a, b) => a.updated_at.localeCompare(b.updated_at))
-    .map((attempt) => [attempt.question_id, attempt.outcome, attempt.updated_at]);
+    .map((attempt) => [attempt.question_id, attempt.outcome, attempt.updated_at, String(attempt.elapsed_seconds)]);
 
   await writeFile(path, formatCsv([attemptsHeader.split(","), ...rows]), "utf8");
 }
@@ -46,12 +51,13 @@ export function recordAttempt(
   attempts: Map<string, Attempt>,
   questionId: string,
   wasCorrect: boolean,
+  elapsedSeconds = 0,
   now = new Date(),
 ): Attempt {
   const existing = attempts.get(questionId);
   const updated_at = now.toISOString();
   const outcome = nextOutcome(existing?.outcome, wasCorrect);
-  const attempt = { question_id: questionId, outcome, updated_at };
+  const attempt = { question_id: questionId, outcome, updated_at, elapsed_seconds: elapsedSeconds };
   attempts.set(questionId, attempt);
   return attempt;
 }
@@ -77,6 +83,8 @@ export function buildSummaryRows(attempts: Map<string, Attempt>, now = new Date(
   const corrected = values.filter((attempt) => attempt.outcome === "corrected").length;
   const mastered = correct + corrected;
   const accuracy = total === 0 ? "0.00" : (mastered / total).toFixed(2);
+  const totalSeconds = values.reduce((sum, attempt) => sum + attempt.elapsed_seconds, 0);
+  const avgSeconds = total === 0 ? 0 : totalSeconds / total;
 
   return [
     { metric: "answered", value: String(total), updated_at },
@@ -84,6 +92,7 @@ export function buildSummaryRows(attempts: Map<string, Attempt>, now = new Date(
     { metric: "incorrect", value: String(incorrect), updated_at },
     { metric: "corrected", value: String(corrected), updated_at },
     { metric: "accuracy", value: accuracy, updated_at },
+    { metric: "avg_seconds", value: avgSeconds.toFixed(1), updated_at },
   ];
 }
 
@@ -95,6 +104,11 @@ export async function saveSummary(attempts: Map<string, Attempt>, path = summary
 
 function isOutcome(value: string | undefined): value is Outcome {
   return value === "correct" || value === "incorrect" || value === "corrected";
+}
+
+function readElapsedSeconds(value: string | undefined): number {
+  const seconds = Number(value);
+  return Number.isFinite(seconds) && seconds >= 0 ? seconds : 0;
 }
 
 async function ensureFile(path: string, contents: string): Promise<void> {

@@ -11,11 +11,13 @@ describe("state", () => {
 
     try {
       const attempts = await loadAttempts(path);
-      recordAttempt(attempts, "abc12345", false, new Date("2026-01-01T00:00:00.000Z"));
+      recordAttempt(attempts, "abc12345", false, 42, new Date("2026-01-01T00:00:00.000Z"));
       await saveAttempts(attempts, path);
 
       const raw = await readFile(path, "utf8");
-      expect(raw).toBe("question_id,outcome,updated_at\nabc12345,incorrect,2026-01-01T00:00:00.000Z\n");
+      expect(raw).toBe(
+        "question_id,outcome,updated_at,elapsed_seconds\nabc12345,incorrect,2026-01-01T00:00:00.000Z,42\n",
+      );
       expect(await loadAttempts(path)).toEqual(attempts);
     } finally {
       await rm(dir, { recursive: true, force: true });
@@ -24,8 +26,8 @@ describe("state", () => {
 
   test("uses corrected for a later right answer after a miss", () => {
     const attempts = new Map();
-    recordAttempt(attempts, "abc12345", false, new Date("2026-01-01T00:00:00.000Z"));
-    recordAttempt(attempts, "abc12345", true, new Date("2026-01-02T00:00:00.000Z"));
+    recordAttempt(attempts, "abc12345", false, 12, new Date("2026-01-01T00:00:00.000Z"));
+    recordAttempt(attempts, "abc12345", true, 10, new Date("2026-01-02T00:00:00.000Z"));
 
     expect(attempts.get("abc12345")?.outcome).toBe("corrected");
   });
@@ -37,9 +39,9 @@ describe("state", () => {
 
   test("builds summary rows from attempts", () => {
     const attempts = new Map();
-    recordAttempt(attempts, "a", true, new Date("2026-01-01T00:00:00.000Z"));
-    recordAttempt(attempts, "b", false, new Date("2026-01-01T00:00:00.000Z"));
-    recordAttempt(attempts, "b", true, new Date("2026-01-02T00:00:00.000Z"));
+    recordAttempt(attempts, "a", true, 20, new Date("2026-01-01T00:00:00.000Z"));
+    recordAttempt(attempts, "b", false, 10, new Date("2026-01-01T00:00:00.000Z"));
+    recordAttempt(attempts, "b", true, 40, new Date("2026-01-02T00:00:00.000Z"));
 
     const rows = buildSummaryRows(attempts, new Date("2026-01-03T00:00:00.000Z"));
     expect(Object.fromEntries(rows.map((row) => [row.metric, row.value]))).toEqual({
@@ -48,6 +50,7 @@ describe("state", () => {
       incorrect: "0",
       corrected: "1",
       accuracy: "1.00",
+      avg_seconds: "30.0",
     });
   });
 });

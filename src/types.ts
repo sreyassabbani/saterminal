@@ -4,6 +4,7 @@ export type Attempt = {
   question_id: string;
   outcome: Outcome;
   updated_at: string;
+  elapsed_seconds: number;
 };
 
 export type SummaryRow = {
