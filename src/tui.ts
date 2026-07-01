@@ -21,6 +21,7 @@ type AppState = {
   elapsedMs: number;
   timerStartedAt?: number;
   timerPaused: boolean;
+  timerHidden: boolean;
   lastAnswer?: string;
   lastCorrect?: boolean;
   detailQuestion?: PracticeQuestion;
@@ -43,6 +44,7 @@ export async function runTui(): Promise<void> {
     questionScroll: 0,
     elapsedMs: 0,
     timerPaused: false,
+    timerHidden: false,
     historyIndex: 0,
   };
 
@@ -107,6 +109,11 @@ async function handleKey(state: AppState, name: string, data?: KeyData): Promise
   if (name === "s") {
     pauseTimer(state);
     state.view = "summary";
+    return;
+  }
+
+  if (name === "t") {
+    state.timerHidden = !state.timerHidden;
     return;
   }
 
@@ -287,8 +294,9 @@ function renderPaused(): void {
 
 function header(state: AppState): void {
   const answered = state.attempts.size;
+  const timer = state.timerHidden ? "" : `  time ${formatElapsed(elapsedQuestionSeconds(state))}${timerStatus(state)}`;
   term.moveTo(1, 1).bold("sat");
-  term.moveTo(8, 1).gray(`reading/writing  answered ${answered}  time ${formatElapsed(elapsedQuestionSeconds(state))}${timerStatus(state)}`);
+  term.moveTo(8, 1).gray(`reading/writing  answered ${answered}${timer}`);
   term.moveTo(1, 2).gray("-".repeat(term.width));
 }
 
@@ -417,10 +425,10 @@ function renderError(state: AppState): void {
 
 function practiceControls(state: AppState): string {
   if (state.question && questionNeedsExternalDisplay(state.question.detail)) {
-    return "space pause/resume | o open externally | n/x/enter skip | h history | s summary | q quit";
+    return "space pause/resume | t timer | o open externally | n/x/enter skip | h history | s summary | q quit";
   }
 
-  return "space pause/resume | up/down or j/k move | pgup/pgdn or [/] scroll question | enter submit | h history | s summary | q quit";
+  return "space pause/resume | t timer | up/down or j/k move | pgup/pgdn or [/] scroll question | enter submit | h history | s summary | q quit";
 }
 
 function isPauseKey(name: string, data?: KeyData): boolean {
