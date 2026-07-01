@@ -6,7 +6,7 @@ import { buildSummaryRows, loadAttempts, nextOutcome, recordAttempt, saveAttempt
 
 describe("state", () => {
   test("creates and reads a compact attempts csv", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "sat-cli-"));
+    const dir = await mkdtemp(join(tmpdir(), "satui-"));
     const path = join(dir, "attempts.csv");
 
     try {

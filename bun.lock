@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "sat-cli",
+      "name": "satui",
       "dependencies": {
         "terminal-kit": "^3.1.2",
       },
