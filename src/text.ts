@@ -19,6 +19,8 @@ const entityMap: Record<string, string> = {
 export function htmlToText(html = ""): string {
   return decodeEntities(
     html
+      .replace(/<\s*svg\b([^>]*)>[\s\S]*?<\s*\/\s*svg\s*>/gi, (_match, attrs: string) => mediaLabel("Graph", attrs))
+      .replace(/<\s*img\b([^>]*)>/gi, (_match, attrs: string) => mediaLabel("Image", attrs))
       .replace(/<\s*br\s*\/?>/gi, "\n")
       .replace(/<\/\s*(p|div|li|h[1-6])\s*>/gi, "\n")
       .replace(/<\s*li\s*>/gi, "- ")
@@ -27,6 +29,21 @@ export function htmlToText(html = ""): string {
       .replace(/\n{3,}/g, "\n\n")
       .trim(),
   );
+}
+
+export function hasHtmlTable(...values: Array<string | undefined>): boolean {
+  return values.some((value) => /<\s*table\b/i.test(value ?? ""));
+}
+
+function mediaLabel(kind: string, attrs: string): string {
+  const label = readAttribute(attrs, "aria-label") ?? readAttribute(attrs, "alt");
+  return label ? `\n[${kind}: ${label}]\n` : `\n[${kind}]\n`;
+}
+
+function readAttribute(attrs: string, name: string): string | undefined {
+  const pattern = new RegExp(`${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, "i");
+  const match = attrs.match(pattern);
+  return match?.[1] ?? match?.[2] ?? match?.[3];
 }
 
 export function decodeEntities(value: string): string {
