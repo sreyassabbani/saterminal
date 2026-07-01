@@ -1,0 +1,41 @@
+export type Outcome = "correct" | "incorrect" | "corrected";
+
+export type Attempt = {
+  question_id: string;
+  outcome: Outcome;
+  updated_at: string;
+};
+
+export type SummaryRow = {
+  metric: string;
+  value: string;
+  updated_at: string;
+};
+
+export type QuestionMeta = {
+  questionId: string;
+  uId: string;
+  external_id: string;
+  difficulty: string;
+  primary_class_cd: string;
+  primary_class_cd_desc?: string;
+  program?: string;
+  skill_cd: string;
+  skill_desc?: string;
+  score_band_range_cd?: number;
+};
+
+export type QuestionDetail = {
+  externalid: string;
+  type: string;
+  stimulus?: string;
+  stem: string;
+  answerOptions: Record<string, string>;
+  correct_answer: string[];
+  rationale?: string;
+};
+
+export type PracticeQuestion = {
+  meta: QuestionMeta;
+  detail: QuestionDetail;
+};
