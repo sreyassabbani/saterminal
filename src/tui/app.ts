@@ -16,6 +16,8 @@ export async function runTui(): Promise<void> {
     view: "focus",
     selected: 0,
     questionScroll: 0,
+    answerScroll: 0,
+    activePane: "answers",
     elapsedMs: 0,
     timerPaused: false,
     timerHidden: false,

@@ -5,11 +5,15 @@ import {
   answerKeys,
   openExternalQuestion,
   questionNeedsExternalDisplay,
-  questionPageSize,
+  questionRows,
 } from "./question.ts";
 import { historyRows } from "./history.ts";
-import { elapsedQuestionSeconds, pauseTimer, resumeTimer, toggleTimer } from "./timer.ts";
+import { elapsedQuestionSeconds, formatElapsed, pauseTimer, resumeTimer, toggleTimer } from "./timer.ts";
+import { paneLayout, paneViewportHeight } from "./layout.ts";
+import { detailPaneRows, practiceAnswerPaneRows, reviewPaneRows } from "./pane-content.ts";
+import { alternatePane, ensureRangeVisible, scrollBy, scrollPage, scrollToEdge, type PaneViewport } from "./viewport.ts";
 import type { AppState, KeyData } from "./types.ts";
+import type { PracticeQuestion } from "../types.ts";
 
 export function isPauseKey(name: string, data?: KeyData): boolean {
   if (name === " " || name.toUpperCase() === "SPACE") {
@@ -67,7 +71,7 @@ export async function handleKey(state: AppState, name: string, data?: KeyData): 
 
   if (name === "p") {
     state.view = state.question ? "practice" : "loading";
-    state.questionScroll = 0;
+    resetPaneScroll(state);
     resumeTimer(state);
     if (!state.question) {
       await loadNextQuestion(state);
@@ -83,19 +87,8 @@ export async function handleKey(state: AppState, name: string, data?: KeyData): 
     return;
   }
 
-  if (state.view === "practice" || state.view === "review" || state.view === "detail") {
-    if (name === "PAGE_DOWN" || name === "]") {
-      state.questionScroll += questionPageSize();
-      return;
-    }
-    if (name === "PAGE_UP" || name === "[") {
-      state.questionScroll = Math.max(0, state.questionScroll - questionPageSize());
-      return;
-    }
-    if (name === "HOME") {
-      state.questionScroll = 0;
-      return;
-    }
+  if (isScrollablePaneView(state) && handlePaneKey(state, name)) {
+    return;
   }
 
   if (state.view === "practice") {
@@ -116,12 +109,9 @@ export async function handleKey(state: AppState, name: string, data?: KeyData): 
 
     const choices = answerKeys(state.question);
     const directChoice = choices.findIndex((choice) => choice.toLowerCase() === name.toLowerCase());
-    if (name === "UP" || name === "k") {
-      state.selected = Math.max(0, state.selected - 1);
-    } else if (name === "DOWN" || name === "j") {
-      state.selected = Math.min(choices.length - 1, state.selected + 1);
-    } else if (directChoice >= 0) {
+    if (directChoice >= 0) {
       state.selected = directChoice;
+      ensureSelectedAnswerVisible(state);
     } else if (name === "ENTER") {
       const answer = choices[state.selected];
       const correct = state.question?.detail.correct_answer.includes(answer) ?? false;
@@ -135,6 +125,8 @@ export async function handleKey(state: AppState, name: string, data?: KeyData): 
         await saveSummary(state.attempts);
       }
       state.view = "review";
+      state.activePane = "answers";
+      state.answerScroll = 0;
     }
     return;
   }
@@ -152,7 +144,7 @@ export async function handleKey(state: AppState, name: string, data?: KeyData): 
       state.historyIndex = Math.min(attempts.length - 1, state.historyIndex + 1);
     } else if (name === "ENTER" && attempts[state.historyIndex]) {
       state.view = "loading";
-      state.questionScroll = 0;
+      resetPaneScroll(state);
       state.detailQuestion = await findQuestionByShortId(attempts[state.historyIndex].question_id);
       state.view = "detail";
     }
@@ -220,7 +212,7 @@ export async function loadNextQuestion(state: AppState): Promise<void> {
   state.view = "loading";
   state.question = await takeNextQuestion(state);
   state.selected = 0;
-  state.questionScroll = 0;
+  resetPaneScroll(state);
   state.elapsedMs = 0;
   state.timerStartedAt = Date.now();
   state.timerPaused = false;
@@ -260,4 +252,160 @@ function skipQuestion(state: AppState): void {
   if (state.question) {
     state.skippedIds.add(state.question.meta.questionId);
   }
+}
+
+function handlePaneKey(state: AppState, name: string): boolean {
+  if (name === "TAB" || name === "SHIFT_TAB") {
+    state.activePane = alternatePane(state.activePane);
+    return true;
+  }
+
+  if (state.view === "practice" && state.activePane === "answers" && (name === "UP" || name === "k" || name === "DOWN" || name === "j")) {
+    moveSelectedAnswer(state, name === "UP" || name === "k" ? -1 : 1);
+    return true;
+  }
+
+  if (name === "UP" || name === "k") {
+    scrollActivePaneBy(state, -1);
+    return true;
+  }
+
+  if (name === "DOWN" || name === "j") {
+    scrollActivePaneBy(state, 1);
+    return true;
+  }
+
+  if (name === "PAGE_UP" || name === "[") {
+    scrollActivePanePage(state, -1);
+    return true;
+  }
+
+  if (name === "PAGE_DOWN" || name === "]") {
+    scrollActivePanePage(state, 1);
+    return true;
+  }
+
+  if (name === "HOME" || name === "g") {
+    scrollActivePaneToEdge(state, "top");
+    return true;
+  }
+
+  if (name === "END" || name === "G") {
+    scrollActivePaneToEdge(state, "bottom");
+    return true;
+  }
+
+  return false;
+}
+
+function moveSelectedAnswer(state: AppState, delta: number): void {
+  const choices = answerKeys(state.question);
+  if (choices.length === 0) {
+    return;
+  }
+
+  state.selected = Math.max(0, Math.min(choices.length - 1, state.selected + delta));
+  ensureSelectedAnswerVisible(state);
+}
+
+function scrollActivePaneBy(state: AppState, delta: number): void {
+  setActivePaneScroll(state, scrollBy(activePaneViewport(state), delta));
+}
+
+function scrollActivePanePage(state: AppState, direction: 1 | -1): void {
+  setActivePaneScroll(state, scrollPage(activePaneViewport(state), direction));
+}
+
+function scrollActivePaneToEdge(state: AppState, edge: "top" | "bottom"): void {
+  setActivePaneScroll(state, scrollToEdge(activePaneViewport(state), edge));
+}
+
+function activePaneViewport(state: AppState): PaneViewport {
+  const panes = paneLayout();
+  const height = paneViewportHeight();
+
+  if (state.activePane === "question") {
+    const question = currentPaneQuestion(state);
+    return {
+      scroll: state.questionScroll,
+      height,
+      contentRows: question ? questionRows(question.detail, panes.leftWidth).length : 0,
+    };
+  }
+
+  return {
+    scroll: state.answerScroll,
+    height,
+    contentRows: rightPaneRows(state, panes.rightWidth).length,
+  };
+}
+
+function setActivePaneScroll(state: AppState, scroll: number): void {
+  if (state.activePane === "question") {
+    state.questionScroll = scroll;
+  } else {
+    state.answerScroll = scroll;
+  }
+}
+
+function ensureSelectedAnswerVisible(state: AppState): void {
+  if (!state.question) {
+    return;
+  }
+
+  const panes = paneLayout();
+  const content = practiceAnswerPaneRows(state.question, state.selected, panes.rightWidth);
+  const choice = content.choices[state.selected];
+  if (!choice) {
+    return;
+  }
+
+  state.answerScroll = ensureRangeVisible(
+    {
+      scroll: state.answerScroll,
+      height: paneViewportHeight(),
+      contentRows: content.rows.length,
+    },
+    choice.start,
+    choice.end,
+  );
+}
+
+function resetPaneScroll(state: AppState): void {
+  state.questionScroll = 0;
+  state.answerScroll = 0;
+  state.activePane = "answers";
+}
+
+function currentPaneQuestion(state: AppState): PracticeQuestion | undefined {
+  return state.view === "detail" ? state.detailQuestion : state.question;
+}
+
+function isScrollablePaneView(state: AppState): boolean {
+  if (state.view !== "practice" && state.view !== "review" && state.view !== "detail") {
+    return false;
+  }
+
+  const question = currentPaneQuestion(state);
+  return Boolean(question && !questionNeedsExternalDisplay(question.detail));
+}
+
+function rightPaneRows(state: AppState, width: number) {
+  if (state.view === "practice" && state.question) {
+    return practiceAnswerPaneRows(state.question, state.selected, width).rows;
+  }
+
+  if (state.view === "review" && state.question) {
+    return reviewPaneRows(state.question, {
+      lastAnswer: state.lastAnswer,
+      lastCorrect: state.lastCorrect,
+      elapsed: formatElapsed(elapsedQuestionSeconds(state)),
+    }, width);
+  }
+
+  if (state.view === "detail" && state.detailQuestion) {
+    return detailPaneRows(state.detailQuestion, state.attempts.get(state.detailQuestion.meta.questionId), width);
+  }
+
+  return [];
 }
