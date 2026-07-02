@@ -2,7 +2,7 @@ import type { Attempt, Focus, PracticeQuestion } from "../types.ts";
 import type { TextSegment } from "../text.ts";
 import type { PaneId } from "./viewport.ts";
 
-export type View = "focus" | "loading" | "practice" | "review" | "history" | "summary" | "detail" | "error";
+export type View = "setup" | "focus" | "loading" | "practice" | "review" | "history" | "summary" | "detail" | "error";
 
 export type AppState = {
   attempts: Map<string, Attempt>;

@@ -1,7 +1,6 @@
 {
-  "name": "satui",
-  "version": "0.1.0",
-  "private": true,
+  "name": "saterminal",
+  "version": "0.2.0",
   "type": "module",
   "bin": {
     "sat": "./src/main.ts"
