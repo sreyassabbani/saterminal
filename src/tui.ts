@@ -349,12 +349,19 @@ function renderReview(state: AppState): void {
   const panes = paneLayout();
   let rightY = 4;
   const correct = state.lastCorrect ? "correct" : "incorrect";
-  term.moveTo(panes.rightX, rightY++)[state.lastCorrect ? "green" : "red"](correct);
-  lineAt(panes.rightX, rightY++, panes.rightWidth, `your answer: ${state.lastAnswer ?? "-"}`);
-  lineAt(panes.rightX, rightY++, panes.rightWidth, `correct: ${detail.correct_answer.join(", ")}`);
+  lineAtColor(panes.rightX, rightY++, panes.rightWidth, correct.toUpperCase(), state.lastCorrect ? "green" : "red", true);
+  lineAtColor(
+    panes.rightX,
+    rightY++,
+    panes.rightWidth,
+    `your answer: ${state.lastAnswer ?? "-"}`,
+    state.lastCorrect ? "green" : "red",
+  );
+  lineAtColor(panes.rightX, rightY++, panes.rightWidth, `correct: ${detail.correct_answer.join(", ")}`, "green");
+  lineAtColor(panes.rightX, rightY++, panes.rightWidth, `time: ${formatElapsed(elapsedQuestionSeconds(state))}`, "cyan");
   rightY++;
-  lineAt(panes.rightX, rightY++, panes.rightWidth, `${meta.primary_class_cd} | ${meta.skill_cd}`);
-  lineAt(panes.rightX, rightY++, panes.rightWidth, `difficulty ${meta.difficulty} | ${meta.questionId}`);
+  lineAtColor(panes.rightX, rightY++, panes.rightWidth, `${meta.primary_class_cd} | ${meta.skill_cd}`, "cyan");
+  lineAtColor(panes.rightX, rightY++, panes.rightWidth, `difficulty ${meta.difficulty} | ${meta.questionId}`, "yellow");
   rightY++;
   printWrappedAt(htmlToText(detail.rationale), panes.rightX, rightY, panes.rightWidth, term.height - 3);
 
@@ -644,6 +651,22 @@ function line(y: number, value: string): void {
 
 function lineAt(x: number, y: number, width: number, value: string): void {
   term.moveTo(x, y)(value.slice(0, width));
+}
+
+function lineAtColor(
+  x: number,
+  y: number,
+  width: number,
+  value: string,
+  color: "cyan" | "green" | "red" | "yellow",
+  bold = false,
+): void {
+  const output = value.slice(0, width);
+  if (bold) {
+    term.moveTo(x, y).bold[color](output);
+  } else {
+    term.moveTo(x, y)[color](output);
+  }
 }
 
 function paneLayout(): { leftX: number; leftWidth: number; rightX: number; rightWidth: number } {

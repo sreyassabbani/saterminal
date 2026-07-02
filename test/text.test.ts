@@ -25,6 +25,12 @@ describe("text", () => {
     expect(hasHtmlTable("<p>Text</p>")).toBe(false);
   });
 
+  test("normalizes SAT blank markers", () => {
+    expect(htmlToText("<p>The answer is ______blank because of the data.</p>")).toBe(
+      "The answer is _______ because of the data.",
+    );
+  });
+
   test("wraps text without dropping words", () => {
     expect(wrapText("one two three four", 8)).toEqual(["one two", "three", "four"]);
   });

@@ -17,17 +17,19 @@ const entityMap: Record<string, string> = {
 };
 
 export function htmlToText(html = ""): string {
-  return decodeEntities(
-    html
-      .replace(/<\s*svg\b([^>]*)>[\s\S]*?<\s*\/\s*svg\s*>/gi, (_match, attrs: string) => mediaLabel("Graph", attrs))
-      .replace(/<\s*img\b([^>]*)>/gi, (_match, attrs: string) => mediaLabel("Image", attrs))
-      .replace(/<\s*br\s*\/?>/gi, "\n")
-      .replace(/<\/\s*(p|div|li|h[1-6])\s*>/gi, "\n")
-      .replace(/<\s*li\s*>/gi, "- ")
-      .replace(/<[^>]*>/g, "")
-      .replace(/[ \t]+\n/g, "\n")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim(),
+  return normalizeDisplayText(
+    decodeEntities(
+      html
+        .replace(/<\s*svg\b([^>]*)>[\s\S]*?<\s*\/\s*svg\s*>/gi, (_match, attrs: string) => mediaLabel("Graph", attrs))
+        .replace(/<\s*img\b([^>]*)>/gi, (_match, attrs: string) => mediaLabel("Image", attrs))
+        .replace(/<\s*br\s*\/?>/gi, "\n")
+        .replace(/<\/\s*(p|div|li|h[1-6])\s*>/gi, "\n")
+        .replace(/<\s*li\s*>/gi, "- ")
+        .replace(/<[^>]*>/g, "")
+        .replace(/[ \t]+\n/g, "\n")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim(),
+    ),
   );
 }
 
@@ -44,6 +46,10 @@ function readAttribute(attrs: string, name: string): string | undefined {
   const pattern = new RegExp(`${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, "i");
   const match = attrs.match(pattern);
   return match?.[1] ?? match?.[2] ?? match?.[3];
+}
+
+function normalizeDisplayText(value: string): string {
+  return value.replace(/_{3,}\s*blank\b/gi, "_______");
 }
 
 export function decodeEntities(value: string): string {
