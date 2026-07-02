@@ -2,13 +2,12 @@ import { describe, expect, test } from "bun:test";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { defaultFocus, normalizeFocus } from "../src/focus.ts";
 import {
-  defaultFocus,
   buildSummaryRows,
   loadAttempts,
   loadFocus,
   nextOutcome,
-  normalizeFocus,
   recordAttempt,
   saveAttempts,
   saveFocus,
@@ -67,8 +66,16 @@ describe("state", () => {
   test("normalizes invalid focus selections to valid defaults", () => {
     expect(normalizeFocus({ difficulties: [], domains: ["NOPE"], skills: ["CID"] })).toEqual({
       difficulties: defaultFocus.difficulties,
-      domains: defaultFocus.domains,
+      domains: ["INI"],
       skills: ["CID"],
+    });
+  });
+
+  test("derives focus domains from selected skills", () => {
+    expect(normalizeFocus({ difficulties: ["H"], domains: ["INI"], skills: ["WIC"] })).toEqual({
+      difficulties: ["H"],
+      domains: ["CAS"],
+      skills: ["WIC"],
     });
   });
 

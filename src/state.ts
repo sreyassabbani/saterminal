@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import type { Attempt, Difficulty, Domain, Focus, Outcome, Skill, SummaryRow } from "./types.ts";
+import { defaultFocus, normalizeFocus } from "./focus.ts";
+import type { Attempt, Focus, Outcome, SummaryRow } from "./types.ts";
 
 export const stateDir = "userlocal";
 export const attemptsPath = join(stateDir, "attempts.csv");
@@ -9,14 +10,6 @@ export const focusPath = join(stateDir, "focus.json");
 
 const attemptsHeader = "question_id,outcome,updated_at,elapsed_seconds";
 const summaryHeader = "metric,value,updated_at";
-export const difficultyOptions = ["E", "M", "H"] as const satisfies readonly Difficulty[];
-export const domainOptions = ["INI", "CAS", "EOI", "SEC"] as const satisfies readonly Domain[];
-export const skillOptions = ["CID", "INF", "COE", "WIC", "TSP", "CTC", "SYN", "TRA", "BOU", "FSS"] as const satisfies readonly Skill[];
-export const defaultFocus: Focus = {
-  difficulties: ["M", "H"],
-  domains: [...domainOptions],
-  skills: [...skillOptions],
-};
 
 export async function ensureStateFiles(): Promise<void> {
   await mkdir(stateDir, { recursive: true });
@@ -126,15 +119,6 @@ export async function saveFocus(focus: Focus, path = focusPath): Promise<void> {
   await writeFile(path, `${JSON.stringify(normalizeFocus(focus), null, 2)}\n`, "utf8");
 }
 
-export function normalizeFocus(value: unknown): Focus {
-  const raw = value && typeof value === "object" ? value as Partial<Record<keyof Focus, unknown>> : {};
-  return {
-    difficulties: normalizeSelection(raw.difficulties, difficultyOptions, defaultFocus.difficulties),
-    domains: normalizeSelection(raw.domains, domainOptions, defaultFocus.domains),
-    skills: normalizeSelection(raw.skills, skillOptions, defaultFocus.skills),
-  };
-}
-
 function isOutcome(value: string | undefined): value is Outcome {
   return value === "correct" || value === "incorrect" || value === "corrected";
 }
@@ -142,15 +126,6 @@ function isOutcome(value: string | undefined): value is Outcome {
 function readElapsedSeconds(value: string | undefined): number {
   const seconds = Number(value);
   return Number.isFinite(seconds) && seconds >= 0 ? seconds : 0;
-}
-
-function normalizeSelection<T extends string>(value: unknown, options: readonly T[], fallback: readonly T[]): T[] {
-  if (!Array.isArray(value)) {
-    return [...fallback];
-  }
-
-  const selected = options.filter((option) => value.includes(option));
-  return selected.length > 0 ? selected : [...fallback];
 }
 
 async function ensureFile(path: string, contents: string): Promise<void> {

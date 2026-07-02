@@ -51,4 +51,30 @@ describe("api", () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  test("derives domain filters from selected skill filters", async () => {
+    const originalFetch = globalThis.fetch;
+    let requested = "";
+    globalThis.fetch = ((input: RequestInfo | URL) => {
+      requested = String(input);
+      return Promise.resolve(
+        new Response(JSON.stringify({ success: true, data: [] }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+    }) as typeof fetch;
+
+    try {
+      await fetchQuestionBank([], {
+        difficulties: ["H"],
+        domains: ["INI"],
+        skills: ["WIC"],
+      });
+      expect(requested).toContain("domains=CAS");
+      expect(requested).toContain("skills=WIC");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });

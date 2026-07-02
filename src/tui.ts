@@ -3,8 +3,6 @@ import { spawn } from "node:child_process";
 import { fetchPracticeQuestion, findQuestionByShortId } from "./api.ts";
 import {
   buildSummaryRows,
-  difficultyOptions,
-  domainOptions,
   ensureStateFiles,
   loadAttempts,
   loadFocus,
@@ -12,10 +10,10 @@ import {
   saveAttempts,
   saveFocus,
   saveSummary,
-  skillOptions,
 } from "./state.ts";
+import { defaultFocus, focusRows, nextFocusableIndex, previousFocusableIndex, toggleFocusRow } from "./focus.ts";
 import { hasHtmlTable, htmlToText, wrapText } from "./text.ts";
-import type { Attempt, Difficulty, Domain, Focus, PracticeQuestion, QuestionDetail, Skill } from "./types.ts";
+import type { Attempt, Focus, PracticeQuestion, QuestionDetail } from "./types.ts";
 
 const term = terminalKit.terminal;
 const gutter = 3;
@@ -49,21 +47,11 @@ type KeyData = {
   isCharacter?: boolean;
 };
 
-type FocusGroup = "difficulties" | "domains" | "skills";
-
-type FocusRow =
-  | { kind: "header"; label: string }
-  | { kind: "option"; group: FocusGroup; value: Difficulty | Domain | Skill; label: string; checked: boolean };
-
 export async function runTui(): Promise<void> {
   const state: AppState = {
     attempts: new Map(),
     skippedIds: new Set(),
-    focus: {
-      difficulties: ["M", "H"],
-      domains: [...domainOptions],
-      skills: [...skillOptions],
-    },
+    focus: defaultFocus,
     focusIndex: 1,
     view: "focus",
     selected: 0,
@@ -263,7 +251,7 @@ async function handleFocusKey(state: AppState, name: string, data?: KeyData): Pr
   } else if (name === "DOWN" || name === "j") {
     state.focusIndex = nextFocusableIndex(rows, state.focusIndex);
   } else if (isPauseKey(name, data)) {
-    toggleFocusRow(state, rows[state.focusIndex]);
+    state.focus = toggleFocusRow(state.focus, rows[state.focusIndex]);
     state.nextQuestion = undefined;
     state.question = undefined;
     await saveFocus(state.focus);
@@ -395,9 +383,10 @@ function renderFocus(state: AppState): void {
     }
 
     const selected = index === state.focusIndex;
-    const checked = row.checked ? "[x]" : "[ ]";
+    const checked = row.partial ? "[-]" : row.checked ? "[x]" : "[ ]";
     const marker = selected ? ">" : " ";
-    const text = `${marker} ${checked} ${row.label}`;
+    const indent = "  ".repeat(row.depth);
+    const text = `${indent}${marker} ${checked} ${row.label}`;
     term.moveTo(1, y++)[selected ? "inverse" : row.checked ? "green" : "gray"](text.slice(0, term.width - 1));
   }
 }
@@ -523,89 +512,6 @@ function practiceControls(state: AppState): string {
 
   return "space pause/resume | t timer | up/down or j/k move | pgup/pgdn or [/] scroll question | enter submit | f focus | h history | s summary | q quit";
 }
-
-function focusRows(focus: Focus): FocusRow[] {
-  return [
-    { kind: "header", label: "Difficulty" },
-    ...difficultyOptions.map((value) => focusOption("difficulties", value, difficultyLabels[value], focus.difficulties.includes(value))),
-    { kind: "header", label: "Domain" },
-    ...domainOptions.map((value) => focusOption("domains", value, domainLabels[value], focus.domains.includes(value))),
-    { kind: "header", label: "Skill" },
-    ...skillOptions.map((value) => focusOption("skills", value, skillLabels[value], focus.skills.includes(value))),
-  ];
-}
-
-function focusOption(
-  group: FocusGroup,
-  value: Difficulty | Domain | Skill,
-  label: string,
-  checked: boolean,
-): FocusRow {
-  return { kind: "option", group, value, label: `${value}  ${label}`, checked };
-}
-
-function toggleFocusRow(state: AppState, row: FocusRow | undefined): void {
-  if (!row || row.kind !== "option") {
-    return;
-  }
-
-  const values = state.focus[row.group];
-  const selected = values.includes(row.value as never);
-  if (selected && values.length === 1) {
-    return;
-  }
-
-  state.focus = {
-    ...state.focus,
-    [row.group]: selected
-      ? values.filter((value) => value !== row.value)
-      : [...values, row.value].filter((value, index, list) => list.indexOf(value) === index),
-  } as Focus;
-}
-
-function nextFocusableIndex(rows: FocusRow[], current: number): number {
-  for (let index = Math.min(current + 1, rows.length - 1); index < rows.length; index++) {
-    if (rows[index]?.kind === "option") {
-      return index;
-    }
-  }
-  return current;
-}
-
-function previousFocusableIndex(rows: FocusRow[], current: number): number {
-  for (let index = Math.max(current - 1, 0); index >= 0; index--) {
-    if (rows[index]?.kind === "option") {
-      return index;
-    }
-  }
-  return current;
-}
-
-const difficultyLabels: Record<Difficulty, string> = {
-  E: "Easy",
-  M: "Medium",
-  H: "Hard",
-};
-
-const domainLabels: Record<Domain, string> = {
-  INI: "Information and Ideas",
-  CAS: "Craft and Structure",
-  EOI: "Expression of Ideas",
-  SEC: "Standard English Conventions",
-};
-
-const skillLabels: Record<Skill, string> = {
-  CID: "Central Ideas and Details",
-  INF: "Inferences",
-  COE: "Command of Evidence",
-  WIC: "Words in Context",
-  TSP: "Text Structure and Purpose",
-  CTC: "Cross-Text Connections",
-  SYN: "Transitions",
-  TRA: "Rhetorical Synthesis",
-  BOU: "Boundaries",
-  FSS: "Form, Structure, and Sense",
-};
 
 function isPauseKey(name: string, data?: KeyData): boolean {
   if (name === " " || name.toUpperCase() === "SPACE") {

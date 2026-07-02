@@ -1,4 +1,4 @@
-import { defaultFocus } from "./state.ts";
+import { defaultFocus, domainsForSkills } from "./focus.ts";
 import type { Focus, PracticeQuestion, QuestionDetail, QuestionMeta } from "./types.ts";
 
 const baseUrl = "https://practicesat.vercel.app/api";
@@ -57,7 +57,7 @@ export async function findQuestionByShortId(questionId: string): Promise<Practic
 function focusParams(focus: Focus): URLSearchParams {
   return new URLSearchParams({
     assessment: "SAT",
-    domains: focus.domains.join(","),
+    domains: domainsForSkills(focus.skills).join(","),
     difficulties: focus.difficulties.join(","),
     skills: focus.skills.join(","),
   });
