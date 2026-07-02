@@ -184,20 +184,6 @@ async function handleFocusKey(state: AppState, name: string, data?: KeyData): Pr
     return;
   }
 
-  if (name === "LEFT" || name === "h") {
-    const next = moveFocusGridPosition(columns, position, "left");
-    state.focusColumn = next.column;
-    state.focusRow = next.row;
-    return;
-  }
-
-  if (name === "RIGHT" || name === "l") {
-    const next = moveFocusGridPosition(columns, position, "right");
-    state.focusColumn = next.column;
-    state.focusRow = next.row;
-    return;
-  }
-
   if (name === "TAB") {
     const next = moveFocusGridPosition(columns, position, "next");
     state.focusColumn = next.column;

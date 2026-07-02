@@ -50,7 +50,7 @@ export function normalizeFocusGridPosition(columns: FocusGridColumn[], position:
 export function moveFocusGridPosition(
   columns: FocusGridColumn[],
   position: FocusGridPosition,
-  direction: "up" | "down" | "left" | "right" | "next" | "previous",
+  direction: "up" | "down" | "next" | "previous",
 ): FocusGridPosition {
   const current = normalizeFocusGridPosition(columns, position);
 
@@ -62,7 +62,7 @@ export function moveFocusGridPosition(
     return { ...current, row: Math.min(columns[current.column].rows.length - 1, current.row + 1) };
   }
 
-  const delta = direction === "left" || direction === "previous" ? -1 : 1;
+  const delta = direction === "previous" ? -1 : 1;
   const column = (current.column + delta + columns.length) % columns.length;
   return normalizeFocusGridPosition(columns, { column, row: current.row });
 }

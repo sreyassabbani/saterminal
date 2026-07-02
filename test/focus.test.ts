@@ -30,17 +30,16 @@ describe("focus", () => {
 
     expect(moveFocusGridPosition(columns, { column: 0, row: 1 }, "down")).toEqual({ column: 0, row: 2 });
     expect(moveFocusGridPosition(columns, { column: 0, row: 2 }, "down")).toEqual({ column: 0, row: 2 });
-    expect(moveFocusGridPosition(columns, { column: 0, row: 2 }, "right")).toEqual({ column: 1, row: 2 });
-    expect(moveFocusGridPosition(columns, { column: 0, row: 2 }, "left")).toEqual({ column: 4, row: 2 });
     expect(moveFocusGridPosition(columns, { column: 0, row: 2 }, "next")).toEqual({ column: 1, row: 2 });
+    expect(moveFocusGridPosition(columns, { column: 0, row: 2 }, "previous")).toEqual({ column: 4, row: 2 });
   });
 
   test("grid navigation clamps row when moving into shorter columns", () => {
     const focus: Focus = { difficulties: ["H"], domains: ["INI"], skills: ["CID", "INF", "COE"] };
     const columns = focusGrid(focus);
 
-    expect(moveFocusGridPosition(columns, { column: 1, row: 3 }, "right")).toEqual({ column: 2, row: 3 });
-    expect(moveFocusGridPosition(columns, { column: 2, row: 3 }, "right")).toEqual({ column: 3, row: 2 });
+    expect(moveFocusGridPosition(columns, { column: 1, row: 3 }, "next")).toEqual({ column: 2, row: 3 });
+    expect(moveFocusGridPosition(columns, { column: 2, row: 3 }, "next")).toEqual({ column: 3, row: 2 });
   });
 
   test("grid toggles use focus constraints", () => {

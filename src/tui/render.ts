@@ -80,7 +80,7 @@ function footer(doc: TkDocument, state: AppState): void {
   const controls = state.view === "practice"
     ? practiceControls(state)
     : state.view === "focus"
-      ? "arrows/hjkl move | space toggle | tab next group | enter start | q quit"
+      ? "up/down or j/k row | tab/shift-tab group | space toggle | enter start | q quit"
     : state.view === "review"
       ? "pgup/pgdn or [/] scroll question | enter/n next | f focus | h history | s summary | q quit"
       : state.view === "history"
@@ -122,7 +122,7 @@ function renderDifficultyColumn(doc: TkDocument, column: FocusGridColumn, select
 
 function renderDomainColumns(doc: TkDocument, columns: FocusGridColumn[], selectedColumn: number, selectedRow: number): void {
   const { width } = terminalSize();
-  const startY = 10;
+  const startY = 11;
   const gap = 4;
   const perRow = width >= 112 ? 4 : width >= 72 ? 2 : 1;
   const columnWidth = Math.max(24, Math.floor((width - gap * (perRow - 1)) / perRow));
