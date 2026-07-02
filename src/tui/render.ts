@@ -114,11 +114,9 @@ function renderFocus(doc: TkDocument, state: AppState): void {
 function renderDifficultyColumn(doc: TkDocument, column: FocusGridColumn, selectedRow: number): void {
   text(doc, 0, 6, column.title, { color: "cyan", bold: true });
 
-  let x = 0;
   for (const [index, row] of column.rows.entries()) {
     const output = focusOptionText(row, index === selectedRow);
-    writeFocusOption(doc, x, 7, output, row, index === selectedRow);
-    x += output.length + 3;
+    writeFocusOption(doc, 0, 7 + index, output, row, index === selectedRow, 32);
   }
 }
 
