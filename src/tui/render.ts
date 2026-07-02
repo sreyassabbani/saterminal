@@ -193,14 +193,19 @@ function renderReview(doc: TkDocument, state: AppState): void {
   const panes = paneLayout();
   let rightY = 3;
   const correct = state.lastCorrect ? "correct" : "incorrect";
+  const domain = meta.primary_class_cd_desc ? `${meta.primary_class_cd}  ${meta.primary_class_cd_desc}` : meta.primary_class_cd;
+  const skill = meta.skill_desc ? `${meta.skill_cd}  ${meta.skill_desc}` : meta.skill_cd;
+
   text(doc, panes.rightX, rightY++, correct.toUpperCase(), { color: state.lastCorrect ? "green" : "red", bold: true }, panes.rightWidth);
   text(doc, panes.rightX, rightY++, `your answer: ${state.lastAnswer ?? "-"}`, { color: state.lastCorrect ? "green" : "red" }, panes.rightWidth);
   text(doc, panes.rightX, rightY++, `correct: ${detail.correct_answer.join(", ")}`, { color: "green" }, panes.rightWidth);
   text(doc, panes.rightX, rightY++, `time: ${formatElapsed(elapsedQuestionSeconds(state))}`, { color: "cyan" }, panes.rightWidth);
   rightY++;
-  text(doc, panes.rightX, rightY++, `${meta.primary_class_cd} | ${meta.skill_cd}`, { color: "cyan" }, panes.rightWidth);
+  text(doc, panes.rightX, rightY++, domain, { color: "cyan" }, panes.rightWidth);
+  text(doc, panes.rightX, rightY++, skill, { color: "cyan" }, panes.rightWidth);
   text(doc, panes.rightX, rightY++, `difficulty ${meta.difficulty} | ${meta.questionId}`, { color: "yellow" }, panes.rightWidth);
   rightY++;
+  text(doc, panes.rightX, rightY++, "rationale", { bold: true }, panes.rightWidth);
   printWrappedAt(doc, htmlToText(detail.rationale), panes.rightX, rightY, panes.rightWidth, terminalSize().height - 4);
 
   renderQuestionPane(doc, state, panes.leftX, panes.leftWidth, state.questionScroll);
@@ -380,12 +385,16 @@ function text(doc: TkDocument, x: number, y: number, value: string, attr: TextAt
     return;
   }
 
+  const content = truncate(value, width);
+  if (!content) {
+    return;
+  }
+
   new tk.Text({
     parent: doc,
     x,
     y,
-    width,
-    content: truncate(value, width),
+    content,
     attr,
     noDraw: true,
   });
