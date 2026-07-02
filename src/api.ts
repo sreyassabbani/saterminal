@@ -1,12 +1,7 @@
-import type { PracticeQuestion, QuestionDetail, QuestionMeta } from "./types.ts";
+import { defaultFocus } from "./state.ts";
+import type { Focus, PracticeQuestion, QuestionDetail, QuestionMeta } from "./types.ts";
 
 const baseUrl = "https://practicesat.vercel.app/api";
-const defaultParams = new URLSearchParams({
-  assessment: "SAT",
-  domains: "INI,CAS,EOI,SEC",
-  difficulties: "H,M",
-  skills: "CID,INF,COE,WIC,TSP,CTC,SYN,TRA,BOU,FSS",
-});
 
 type ApiEnvelope<T> = {
   success: boolean;
@@ -14,8 +9,8 @@ type ApiEnvelope<T> = {
   message?: string;
 };
 
-export async function fetchQuestionBank(excludeIds: Iterable<string> = []): Promise<QuestionMeta[]> {
-  const params = new URLSearchParams(defaultParams);
+export async function fetchQuestionBank(excludeIds: Iterable<string> = [], focus: Focus = defaultFocus): Promise<QuestionMeta[]> {
+  const params = focusParams(focus);
   const excluded = [...excludeIds].filter(Boolean);
   if (excluded.length > 0) {
     params.set("excludeIds", excluded.join(","));
@@ -38,8 +33,8 @@ export async function fetchQuestion(id: string): Promise<QuestionDetail> {
   return response.data;
 }
 
-export async function fetchPracticeQuestion(attemptedIds: Iterable<string>): Promise<PracticeQuestion> {
-  const bank = await fetchQuestionBank(attemptedIds);
+export async function fetchPracticeQuestion(attemptedIds: Iterable<string>, focus: Focus = defaultFocus): Promise<PracticeQuestion> {
+  const bank = await fetchQuestionBank(attemptedIds, focus);
   if (bank.length === 0) {
     throw new Error("No unanswered questions matched the current filters.");
   }
@@ -57,6 +52,15 @@ export async function findQuestionByShortId(questionId: string): Promise<Practic
   }
 
   return { meta, detail: await fetchQuestion(meta.external_id) };
+}
+
+function focusParams(focus: Focus): URLSearchParams {
+  return new URLSearchParams({
+    assessment: "SAT",
+    domains: focus.domains.join(","),
+    difficulties: focus.difficulties.join(","),
+    skills: focus.skills.join(","),
+  });
 }
 
 async function fetchJson<T>(url: string): Promise<T> {

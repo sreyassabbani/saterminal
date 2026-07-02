@@ -1,8 +1,18 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { buildSummaryRows, loadAttempts, nextOutcome, recordAttempt, saveAttempts } from "../src/state.ts";
+import {
+  defaultFocus,
+  buildSummaryRows,
+  loadAttempts,
+  loadFocus,
+  nextOutcome,
+  normalizeFocus,
+  recordAttempt,
+  saveAttempts,
+  saveFocus,
+} from "../src/state.ts";
 
 describe("state", () => {
   test("creates and reads a compact attempts csv", async () => {
@@ -52,5 +62,28 @@ describe("state", () => {
       accuracy: "1.00",
       avg_seconds: "30.0",
     });
+  });
+
+  test("normalizes invalid focus selections to valid defaults", () => {
+    expect(normalizeFocus({ difficulties: [], domains: ["NOPE"], skills: ["CID"] })).toEqual({
+      difficulties: defaultFocus.difficulties,
+      domains: defaultFocus.domains,
+      skills: ["CID"],
+    });
+  });
+
+  test("saves and loads focus json", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "satui-"));
+    const path = join(dir, "focus.json");
+
+    try {
+      await saveFocus({ difficulties: ["H"], domains: ["SEC"], skills: ["BOU", "FSS"] }, path);
+      expect(await loadFocus(path)).toEqual({ difficulties: ["H"], domains: ["SEC"], skills: ["BOU", "FSS"] });
+
+      await writeFile(path, "{\"difficulties\":[],\"domains\":[],\"skills\":[]}", "utf8");
+      expect(await loadFocus(path)).toEqual(defaultFocus);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });

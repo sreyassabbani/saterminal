@@ -1,19 +1,33 @@
 import terminalKit from "terminal-kit";
 import { spawn } from "node:child_process";
 import { fetchPracticeQuestion, findQuestionByShortId } from "./api.ts";
-import { buildSummaryRows, ensureStateFiles, loadAttempts, recordAttempt, saveAttempts, saveSummary } from "./state.ts";
+import {
+  buildSummaryRows,
+  difficultyOptions,
+  domainOptions,
+  ensureStateFiles,
+  loadAttempts,
+  loadFocus,
+  recordAttempt,
+  saveAttempts,
+  saveFocus,
+  saveSummary,
+  skillOptions,
+} from "./state.ts";
 import { hasHtmlTable, htmlToText, wrapText } from "./text.ts";
-import type { Attempt, PracticeQuestion, QuestionDetail } from "./types.ts";
+import type { Attempt, Difficulty, Domain, Focus, PracticeQuestion, QuestionDetail, Skill } from "./types.ts";
 
 const term = terminalKit.terminal;
 const gutter = 3;
 
-type View = "loading" | "practice" | "review" | "history" | "summary" | "detail" | "error";
+type View = "focus" | "loading" | "practice" | "review" | "history" | "summary" | "detail" | "error";
 
 type AppState = {
   attempts: Map<string, Attempt>;
   skippedIds: Set<string>;
   nextQuestion?: Promise<PracticeQuestion | undefined>;
+  focus: Focus;
+  focusIndex: number;
   view: View;
   question?: PracticeQuestion;
   selected: number;
@@ -35,11 +49,23 @@ type KeyData = {
   isCharacter?: boolean;
 };
 
+type FocusGroup = "difficulties" | "domains" | "skills";
+
+type FocusRow =
+  | { kind: "header"; label: string }
+  | { kind: "option"; group: FocusGroup; value: Difficulty | Domain | Skill; label: string; checked: boolean };
+
 export async function runTui(): Promise<void> {
   const state: AppState = {
     attempts: new Map(),
     skippedIds: new Set(),
-    view: "loading",
+    focus: {
+      difficulties: ["M", "H"],
+      domains: [...domainOptions],
+      skills: [...skillOptions],
+    },
+    focusIndex: 1,
+    view: "focus",
     selected: 0,
     questionScroll: 0,
     elapsedMs: 0,
@@ -85,7 +111,9 @@ export async function runTui(): Promise<void> {
   try {
     await ensureStateFiles();
     state.attempts = await loadAttempts();
-    await loadNextQuestion(state);
+    state.focus = await loadFocus();
+    state.focusIndex = 1;
+    state.view = "focus";
   } catch (error) {
     state.view = "error";
     state.error = error instanceof Error ? error.message : String(error);
@@ -96,6 +124,17 @@ export async function runTui(): Promise<void> {
 
 async function handleKey(state: AppState, name: string, data?: KeyData): Promise<void> {
   if (state.view === "loading") {
+    return;
+  }
+
+  if (state.view === "focus") {
+    await handleFocusKey(state, name, data);
+    return;
+  }
+
+  if (name === "f") {
+    pauseTimer(state);
+    state.view = "focus";
     return;
   }
 
@@ -217,6 +256,24 @@ async function handleKey(state: AppState, name: string, data?: KeyData): Promise
   }
 }
 
+async function handleFocusKey(state: AppState, name: string, data?: KeyData): Promise<void> {
+  const rows = focusRows(state.focus);
+  if (name === "UP" || name === "k") {
+    state.focusIndex = previousFocusableIndex(rows, state.focusIndex);
+  } else if (name === "DOWN" || name === "j") {
+    state.focusIndex = nextFocusableIndex(rows, state.focusIndex);
+  } else if (isPauseKey(name, data)) {
+    toggleFocusRow(state, rows[state.focusIndex]);
+    state.nextQuestion = undefined;
+    state.question = undefined;
+    await saveFocus(state.focus);
+  } else if (name === "ENTER") {
+    state.nextQuestion = undefined;
+    state.question = undefined;
+    await loadNextQuestion(state);
+  }
+}
+
 async function loadNextQuestion(state: AppState): Promise<void> {
   state.view = "loading";
   state.question = await takeNextQuestion(state);
@@ -242,11 +299,11 @@ async function takeNextQuestion(state: AppState): Promise<PracticeQuestion> {
     }
   }
 
-  return fetchPracticeQuestion(questionExclusions(state));
+  return fetchPracticeQuestion(questionExclusions(state), state.focus);
 }
 
 function cacheNextQuestion(state: AppState): void {
-  state.nextQuestion = fetchPracticeQuestion(questionExclusions(state)).catch(() => undefined);
+  state.nextQuestion = fetchPracticeQuestion(questionExclusions(state), state.focus).catch(() => undefined);
 }
 
 function questionExclusions(state: AppState): string[] {
@@ -268,6 +325,8 @@ function render(state: AppState): void {
 
   if (state.view === "loading") {
     line(3, "Loading...");
+  } else if (state.view === "focus") {
+    renderFocus(state);
   } else if (state.view === "practice") {
     renderPractice(state);
   } else if (state.view === "review") {
@@ -303,17 +362,44 @@ function header(state: AppState): void {
 function footer(state: AppState): void {
   const controls = state.view === "practice"
     ? practiceControls(state)
+    : state.view === "focus"
+      ? "up/down or j/k move | space toggle | enter start | q quit"
     : state.view === "review"
-      ? "pgup/pgdn or [/] scroll question | enter/n next | h history | s summary | q quit"
+      ? "pgup/pgdn or [/] scroll question | enter/n next | f focus | h history | s summary | q quit"
       : state.view === "history"
-        ? "up/down or j/k move | enter open | p practice | s summary | q quit"
+        ? "up/down or j/k move | enter open | f focus | p practice | s summary | q quit"
         : state.view === "detail"
-          ? "pgup/pgdn or [/] scroll question | esc history | p practice | q quit"
+          ? "pgup/pgdn or [/] scroll question | esc history | f focus | p practice | q quit"
           : state.view === "error"
             ? "r retry | q quit"
             : "p practice | h history | q quit";
   term.moveTo(1, term.height - 1).gray("-".repeat(term.width));
   term.moveTo(1, term.height).gray(controls.slice(0, term.width - 1));
+}
+
+function renderFocus(state: AppState): void {
+  const rows = focusRows(state.focus);
+  const visibleRows = Math.max(1, term.height - 7);
+  const start = Math.max(0, Math.min(state.focusIndex - visibleRows + 1, rows.length - visibleRows));
+  let y = 4;
+
+  term.moveTo(1, y++).bold("study focus");
+  term.moveTo(1, y++).gray("Choose what this session can serve. Each group keeps at least one option selected.");
+  y++;
+
+  for (const [offset, row] of rows.slice(start, start + visibleRows).entries()) {
+    const index = start + offset;
+    if (row.kind === "header") {
+      term.moveTo(1, y++).cyan(row.label.slice(0, term.width - 1));
+      continue;
+    }
+
+    const selected = index === state.focusIndex;
+    const checked = row.checked ? "[x]" : "[ ]";
+    const marker = selected ? ">" : " ";
+    const text = `${marker} ${checked} ${row.label}`;
+    term.moveTo(1, y++)[selected ? "inverse" : row.checked ? "green" : "gray"](text.slice(0, term.width - 1));
+  }
 }
 
 function renderPractice(state: AppState): void {
@@ -432,11 +518,94 @@ function renderError(state: AppState): void {
 
 function practiceControls(state: AppState): string {
   if (state.question && questionNeedsExternalDisplay(state.question.detail)) {
-    return "space pause/resume | t timer | o open externally | n/x/enter skip | h history | s summary | q quit";
+    return "space pause/resume | t timer | o open externally | n/x/enter skip | f focus | h history | s summary | q quit";
   }
 
-  return "space pause/resume | t timer | up/down or j/k move | pgup/pgdn or [/] scroll question | enter submit | h history | s summary | q quit";
+  return "space pause/resume | t timer | up/down or j/k move | pgup/pgdn or [/] scroll question | enter submit | f focus | h history | s summary | q quit";
 }
+
+function focusRows(focus: Focus): FocusRow[] {
+  return [
+    { kind: "header", label: "Difficulty" },
+    ...difficultyOptions.map((value) => focusOption("difficulties", value, difficultyLabels[value], focus.difficulties.includes(value))),
+    { kind: "header", label: "Domain" },
+    ...domainOptions.map((value) => focusOption("domains", value, domainLabels[value], focus.domains.includes(value))),
+    { kind: "header", label: "Skill" },
+    ...skillOptions.map((value) => focusOption("skills", value, skillLabels[value], focus.skills.includes(value))),
+  ];
+}
+
+function focusOption(
+  group: FocusGroup,
+  value: Difficulty | Domain | Skill,
+  label: string,
+  checked: boolean,
+): FocusRow {
+  return { kind: "option", group, value, label: `${value}  ${label}`, checked };
+}
+
+function toggleFocusRow(state: AppState, row: FocusRow | undefined): void {
+  if (!row || row.kind !== "option") {
+    return;
+  }
+
+  const values = state.focus[row.group];
+  const selected = values.includes(row.value as never);
+  if (selected && values.length === 1) {
+    return;
+  }
+
+  state.focus = {
+    ...state.focus,
+    [row.group]: selected
+      ? values.filter((value) => value !== row.value)
+      : [...values, row.value].filter((value, index, list) => list.indexOf(value) === index),
+  } as Focus;
+}
+
+function nextFocusableIndex(rows: FocusRow[], current: number): number {
+  for (let index = Math.min(current + 1, rows.length - 1); index < rows.length; index++) {
+    if (rows[index]?.kind === "option") {
+      return index;
+    }
+  }
+  return current;
+}
+
+function previousFocusableIndex(rows: FocusRow[], current: number): number {
+  for (let index = Math.max(current - 1, 0); index >= 0; index--) {
+    if (rows[index]?.kind === "option") {
+      return index;
+    }
+  }
+  return current;
+}
+
+const difficultyLabels: Record<Difficulty, string> = {
+  E: "Easy",
+  M: "Medium",
+  H: "Hard",
+};
+
+const domainLabels: Record<Domain, string> = {
+  INI: "Information and Ideas",
+  CAS: "Craft and Structure",
+  EOI: "Expression of Ideas",
+  SEC: "Standard English Conventions",
+};
+
+const skillLabels: Record<Skill, string> = {
+  CID: "Central Ideas and Details",
+  INF: "Inferences",
+  COE: "Command of Evidence",
+  WIC: "Words in Context",
+  TSP: "Text Structure and Purpose",
+  CTC: "Cross-Text Connections",
+  SYN: "Transitions",
+  TRA: "Rhetorical Synthesis",
+  BOU: "Boundaries",
+  FSS: "Form, Structure, and Sense",
+};
 
 function isPauseKey(name: string, data?: KeyData): boolean {
   if (name === " " || name.toUpperCase() === "SPACE") {

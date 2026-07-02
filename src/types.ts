@@ -13,6 +13,16 @@ export type SummaryRow = {
   updated_at: string;
 };
 
+export type Difficulty = "E" | "M" | "H";
+export type Domain = "INI" | "CAS" | "EOI" | "SEC";
+export type Skill = "CID" | "INF" | "COE" | "WIC" | "TSP" | "CTC" | "SYN" | "TRA" | "BOU" | "FSS";
+
+export type Focus = {
+  difficulties: Difficulty[];
+  domains: Domain[];
+  skills: Skill[];
+};
+
 export type QuestionMeta = {
   questionId: string;
   uId: string;
