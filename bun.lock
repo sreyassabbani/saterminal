@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "satui",
+      "name": "saterminal",
       "dependencies": {
         "he": "^1.2.0",
         "node-html-parser": "^8.0.4",

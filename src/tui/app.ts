@@ -1,9 +1,19 @@
 import { defaultFocus } from "../focus.ts";
-import { ensureStateFiles, loadAttempts, loadFocus } from "../state.ts";
+import { ensureStateFiles, loadAttempts, loadFocus, stateDirExists } from "../state.ts";
 import { handleKey } from "./input.ts";
 import { createDocument, render } from "./render.ts";
 import { term } from "./terminal.ts";
 import type { AppState, KeyData } from "./types.ts";
+
+async function loadPersistedState(state: AppState): Promise<void> {
+  await ensureStateFiles();
+  state.attempts = await loadAttempts();
+  state.focus = await loadFocus();
+  state.focusIndex = 1;
+  state.focusColumn = 0;
+  state.focusRow = 1;
+  state.view = "focus";
+}
 
 export async function runTui(): Promise<void> {
   const state: AppState = {
@@ -13,7 +23,7 @@ export async function runTui(): Promise<void> {
     focusIndex: 1,
     focusColumn: 0,
     focusRow: 1,
-    view: "focus",
+    view: "loading",
     selected: 0,
     questionScroll: 0,
     answerScroll: 0,
@@ -44,10 +54,36 @@ export async function runTui(): Promise<void> {
 
   process.on("SIGINT", cleanup);
   term.on("resize", () => render(doc, state));
+
+  try {
+    if (await stateDirExists()) {
+      await loadPersistedState(state);
+    } else {
+      state.view = "setup";
+    }
+  } catch (error) {
+    state.view = "error";
+    state.error = error instanceof Error ? error.message : String(error);
+  }
+
+  render(doc, state);
+
   term.on("key", async (name: string, _matches?: string[], data?: KeyData) => {
     try {
       if (name === "CTRL_C" || name === "q") {
         cleanup();
+        return;
+      }
+
+      if (state.view === "setup") {
+        if (name === "y" || name === "ENTER") {
+          await loadPersistedState(state);
+        } else if (name === "n") {
+          cleanup();
+          return;
+        }
+
+        render(doc, state);
         return;
       }
 
@@ -59,19 +95,4 @@ export async function runTui(): Promise<void> {
       render(doc, state);
     }
   });
-
-  try {
-    await ensureStateFiles();
-    state.attempts = await loadAttempts();
-    state.focus = await loadFocus();
-    state.focusIndex = 1;
-    state.focusColumn = 0;
-    state.focusRow = 1;
-    state.view = "focus";
-  } catch (error) {
-    state.view = "error";
-    state.error = error instanceof Error ? error.message : String(error);
-  }
-
-  render(doc, state);
 }

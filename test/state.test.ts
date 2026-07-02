@@ -5,17 +5,40 @@ import { join } from "node:path";
 import { defaultFocus, normalizeFocus } from "../src/focus.ts";
 import {
   buildSummaryRows,
+  displayStateDir,
   loadAttempts,
   loadFocus,
   nextOutcome,
   recordAttempt,
+  resolveStateDir,
   saveAttempts,
   saveFocus,
+  stateDirExists,
 } from "../src/state.ts";
 
 describe("state", () => {
+  test("resolves state dir under the user home directory", () => {
+    expect(resolveStateDir("/home/user")).toBe("/home/user/.saterminal/userlocal");
+  });
+
+  test("displays state dir with a tilde prefix", () => {
+    expect(displayStateDir("/home/user/.saterminal/userlocal", "/home/user")).toBe("~/.saterminal/userlocal");
+    expect(displayStateDir("/home/user", "/home/user")).toBe("~");
+  });
+
+  test("detects whether the state directory exists", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "saterminal-"));
+
+    try {
+      expect(await stateDirExists(dir)).toBe(true);
+      expect(await stateDirExists(join(dir, "missing"))).toBe(false);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   test("creates and reads a compact attempts csv", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "satui-"));
+    const dir = await mkdtemp(join(tmpdir(), "saterminal-"));
     const path = join(dir, "attempts.csv");
 
     try {
@@ -42,7 +65,7 @@ describe("state", () => {
   });
 
   test("loads escaped csv fields", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "satui-"));
+    const dir = await mkdtemp(join(tmpdir(), "saterminal-"));
     const path = join(dir, "attempts.csv");
 
     try {
@@ -103,8 +126,20 @@ describe("state", () => {
     });
   });
 
+  test("creates default focus when file is missing", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "saterminal-"));
+    const path = join(dir, "focus.json");
+
+    try {
+      expect(await loadFocus(path)).toEqual(defaultFocus);
+      expect(await readFile(path, "utf8")).toContain("\"difficulties\"");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   test("saves and loads focus json", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "satui-"));
+    const dir = await mkdtemp(join(tmpdir(), "saterminal-"));
     const path = join(dir, "focus.json");
 
     try {
@@ -113,6 +148,18 @@ describe("state", () => {
 
       await writeFile(path, "{\"difficulties\":[],\"domains\":[],\"skills\":[]}", "utf8");
       expect(await loadFocus(path)).toEqual(defaultFocus);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("throws when focus json is invalid", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "saterminal-"));
+    const path = join(dir, "focus.json");
+
+    try {
+      await writeFile(path, "{not json", "utf8");
+      await expect(loadFocus(path)).rejects.toThrow(/Invalid focus file/);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

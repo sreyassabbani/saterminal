@@ -1,4 +1,4 @@
-import { buildSummaryRows } from "../state.ts";
+import { buildSummaryRows, displayStateDir, stateDir } from "../state.ts";
 import { focusSummary } from "../focus.ts";
 import { htmlToText, wrapText } from "../text.ts";
 import type { TextSegment } from "../text.ts";
@@ -41,7 +41,9 @@ export function render(doc: TkDocument, state: AppState): void {
   header(doc, state);
 
   if (state.view === "loading") {
-    text(doc, 0, 3, "Loading...");
+    renderLoading(doc);
+  } else if (state.view === "setup") {
+    renderSetup(doc);
   } else if (state.view === "focus") {
     renderFocus(doc, state);
   } else if (state.view === "practice") {
@@ -62,6 +64,20 @@ export function render(doc: TkDocument, state: AppState): void {
   doc.draw();
 }
 
+function renderLoading(doc: TkDocument): void {
+  text(doc, 0, 3, "Loading...");
+}
+
+function renderSetup(doc: TkDocument): void {
+  const { width } = terminalSize();
+  const location = displayStateDir(stateDir);
+
+  text(doc, 0, 3, "storage location", { bold: true });
+  text(doc, 0, 5, "Sat saves progress, focus settings, and summary stats locally.", { color: "gray" }, width);
+  text(doc, 0, 7, "Allow creating this directory?", { bold: true }, width);
+  text(doc, 0, 9, location, { color: "cyan" }, width);
+}
+
 function renderPaused(doc: TkDocument): void {
   const { width, height } = terminalSize();
   const label = "PAUSED";
@@ -79,7 +95,9 @@ function header(doc: TkDocument, state: AppState): void {
 
 function footer(doc: TkDocument, state: AppState): void {
   const { width, height } = terminalSize();
-  const controls = state.view === "practice"
+  const controls = state.view === "setup"
+    ? "y allow | n decline | q quit"
+    : state.view === "practice"
     ? practiceControls(state)
     : state.view === "focus"
       ? "up/down or j/k row | tab/shift-tab group | space toggle | enter start | q quit"

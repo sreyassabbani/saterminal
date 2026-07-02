@@ -1,9 +1,27 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { dirname, join, sep } from "node:path";
 import { defaultFocus, normalizeFocus } from "./focus.ts";
 import type { Attempt, Focus, Outcome, SummaryRow } from "./types.ts";
 
-export const stateDir = "userlocal";
+export function resolveStateDir(home = homedir()): string {
+  return join(home, ".saterminal", "userlocal");
+}
+
+export function displayStateDir(dir: string, home = homedir()): string {
+  if (dir === home) {
+    return "~";
+  }
+
+  const prefix = `${home}${sep}`;
+  if (dir.startsWith(prefix)) {
+    return `~${dir.slice(home.length)}`;
+  }
+
+  return dir;
+}
+
+export const stateDir = resolveStateDir();
 export const attemptsPath = join(stateDir, "attempts.csv");
 export const summaryPath = join(stateDir, "summary.csv");
 export const focusPath = join(stateDir, "focus.json");
@@ -11,11 +29,23 @@ export const focusPath = join(stateDir, "focus.json");
 const attemptsHeader = "question_id,outcome,updated_at,elapsed_seconds";
 const summaryHeader = "metric,value,updated_at";
 
-export async function ensureStateFiles(): Promise<void> {
-  await mkdir(stateDir, { recursive: true });
-  await ensureFile(attemptsPath, `${attemptsHeader}\n`);
-  await ensureFile(summaryPath, `${summaryHeader}\n`);
-  await ensureFile(focusPath, `${JSON.stringify(defaultFocus, null, 2)}\n`);
+export async function stateDirExists(dir = stateDir): Promise<boolean> {
+  try {
+    return (await stat(dir)).isDirectory();
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return false;
+    }
+
+    throw error;
+  }
+}
+
+export async function ensureStateFiles(dir = stateDir): Promise<void> {
+  await mkdir(dir, { recursive: true });
+  await ensureFile(join(dir, "attempts.csv"), `${attemptsHeader}\n`);
+  await ensureFile(join(dir, "summary.csv"), `${summaryHeader}\n`);
+  await ensureFile(join(dir, "focus.json"), `${JSON.stringify(defaultFocus, null, 2)}\n`);
 }
 
 export async function loadAttempts(path = attemptsPath): Promise<Map<string, Attempt>> {
@@ -107,11 +137,15 @@ export async function saveSummary(attempts: Map<string, Attempt>, path = summary
 
 export async function loadFocus(path = focusPath): Promise<Focus> {
   await ensureFile(path, `${JSON.stringify(defaultFocus, null, 2)}\n`);
+  const raw = await readFile(path, "utf8");
+  let parsed: unknown;
   try {
-    return normalizeFocus(JSON.parse(await readFile(path, "utf8")));
-  } catch {
-    return defaultFocus;
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    throw new Error(`Invalid focus file at ${path}: ${error instanceof Error ? error.message : String(error)}`);
   }
+
+  return normalizeFocus(parsed);
 }
 
 export async function saveFocus(focus: Focus, path = focusPath): Promise<void> {
