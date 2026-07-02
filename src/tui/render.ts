@@ -15,6 +15,7 @@ import {
 import { elapsedQuestionSeconds, formatElapsed, timerStatus } from "./timer.ts";
 import { terminalSize, tk, type TkDocument } from "./kit.ts";
 import type { AppState, PaneLayout } from "./types.ts";
+import type { Attempt, Outcome, QuestionMeta, SummaryRow } from "../types.ts";
 
 type TextAttr = Record<string, unknown>;
 
@@ -193,17 +194,15 @@ function renderReview(doc: TkDocument, state: AppState): void {
   const panes = paneLayout();
   let rightY = 3;
   const correct = state.lastCorrect ? "correct" : "incorrect";
-  const domain = meta.primary_class_cd_desc ? `${meta.primary_class_cd}  ${meta.primary_class_cd_desc}` : meta.primary_class_cd;
-  const skill = meta.skill_desc ? `${meta.skill_cd}  ${meta.skill_desc}` : meta.skill_cd;
 
   text(doc, panes.rightX, rightY++, correct.toUpperCase(), { color: state.lastCorrect ? "green" : "red", bold: true }, panes.rightWidth);
   text(doc, panes.rightX, rightY++, `your answer: ${state.lastAnswer ?? "-"}`, { color: state.lastCorrect ? "green" : "red" }, panes.rightWidth);
   text(doc, panes.rightX, rightY++, `correct: ${detail.correct_answer.join(", ")}`, { color: "green" }, panes.rightWidth);
   text(doc, panes.rightX, rightY++, `time: ${formatElapsed(elapsedQuestionSeconds(state))}`, { color: "cyan" }, panes.rightWidth);
   rightY++;
-  text(doc, panes.rightX, rightY++, domain, { color: "cyan" }, panes.rightWidth);
-  text(doc, panes.rightX, rightY++, skill, { color: "cyan" }, panes.rightWidth);
-  text(doc, panes.rightX, rightY++, `difficulty ${meta.difficulty} | ${meta.questionId}`, { color: "yellow" }, panes.rightWidth);
+  text(doc, panes.rightX, rightY++, formatDomain(meta), { color: "cyan" }, panes.rightWidth);
+  text(doc, panes.rightX, rightY++, formatSkill(meta), { color: "cyan" }, panes.rightWidth);
+  text(doc, panes.rightX, rightY++, `difficulty ${meta.difficulty} | ${meta.questionId}`, difficultyAttr(meta.difficulty), panes.rightWidth);
   rightY++;
   text(doc, panes.rightX, rightY++, "rationale", { bold: true }, panes.rightWidth);
   printWrappedAt(doc, htmlToText(detail.rationale), panes.rightX, rightY, panes.rightWidth, terminalSize().height - 4);
@@ -213,31 +212,34 @@ function renderReview(doc: TkDocument, state: AppState): void {
 
 function renderHistory(doc: TkDocument, state: AppState): void {
   const attempts = historyRows(state);
+  const { width, height } = terminalSize();
   let y = 3;
-  text(doc, 0, y++, "answered questions", { bold: true });
+  text(doc, 0, y++, "answered questions", { color: "cyan", bold: true });
   y++;
 
   if (attempts.length === 0) {
-    text(doc, 0, y, "No attempts yet.");
+    text(doc, 0, y, "No attempts yet.", { color: "gray" });
     return;
   }
 
-  const visibleRows = Math.max(1, terminalSize().height - 7);
+  text(doc, 0, y++, "  question   status     updated", { color: "gray" }, width);
+
+  const visibleRows = Math.max(1, height - 8);
   const start = Math.max(0, Math.min(state.historyIndex - visibleRows + 1, attempts.length - visibleRows));
   for (const [offset, attempt] of attempts.slice(start, start + visibleRows).entries()) {
     const index = start + offset;
-    const marker = index === state.historyIndex ? ">" : " ";
-    const output = `${marker} ${attempt.question_id.padEnd(10)} ${attempt.outcome.padEnd(9)} ${attempt.updated_at}`;
-    text(doc, 0, y++, output, index === state.historyIndex ? { color: "yellow", bold: true } : {}, terminalSize().width);
+    renderHistoryRow(doc, attempt, index === state.historyIndex, y++, width);
   }
 }
 
 function renderSummary(doc: TkDocument, state: AppState): void {
+  const { width } = terminalSize();
   let y = 3;
-  text(doc, 0, y++, "summary", { bold: true });
+  text(doc, 0, y++, "stats summary", { color: "cyan", bold: true });
+  text(doc, 0, y++, "practice progress from recorded attempts", { color: "gray" }, width);
   y++;
   for (const row of buildSummaryRows(state.attempts)) {
-    text(doc, 0, y++, `${row.metric.padEnd(10)} ${row.value}`);
+    renderSummaryRow(doc, row, y++, width);
   }
 }
 
@@ -250,21 +252,39 @@ function renderDetail(doc: TkDocument, state: AppState): void {
   }
 
   const { meta, detail } = state.detailQuestion;
+  const attempt = state.attempts.get(meta.questionId);
   if (questionNeedsExternalDisplay(detail)) {
     renderUnsupportedQuestion(doc, { ...state, question: state.detailQuestion }, panes);
     return;
   }
 
-  text(doc, panes.rightX, rightY++, `${meta.primary_class_cd} | ${meta.skill_cd}`, {}, panes.rightWidth);
-  text(doc, panes.rightX, rightY++, `difficulty ${meta.difficulty} | ${meta.questionId}`, {}, panes.rightWidth);
+  rightY = renderQuestionMetadata(doc, meta, attempt, panes.rightX, rightY, panes.rightWidth);
   rightY++;
 
   renderQuestionPane(doc, { ...state, question: state.detailQuestion }, panes.leftX, panes.leftWidth, state.questionScroll);
 
+  text(doc, panes.rightX, rightY, "answer key", { color: "cyan", bold: true }, panes.rightWidth);
+  text(doc, panes.rightX + 12, rightY++, `correct: ${detail.correct_answer.join(", ")}`, { color: "green", bold: true }, panes.rightWidth - 12);
   for (const key of answerKeys(state.detailQuestion)) {
-    const label = detail.correct_answer.includes(key) ? "*" : " ";
-    rightY = printWrappedAt(doc, `${label} ${key}. ${htmlToText(detail.answerOptions[key])}`, panes.rightX, rightY, panes.rightWidth, terminalSize().height - 4);
+    const correct = detail.correct_answer.includes(key);
+    const label = correct ? "*" : " ";
+    rightY = printWrappedAt(
+      doc,
+      `${label} ${key}. ${htmlToText(detail.answerOptions[key])}`,
+      panes.rightX,
+      rightY,
+      panes.rightWidth,
+      terminalSize().height - 4,
+      correct,
+      correct ? { color: "green" } : { color: "gray" },
+    );
     rightY++;
+  }
+
+  if (detail.rationale && rightY < terminalSize().height - 7) {
+    rightY++;
+    text(doc, panes.rightX, rightY++, "rationale", { color: "cyan", bold: true }, panes.rightWidth);
+    printWrappedAt(doc, htmlToText(detail.rationale), panes.rightX, rightY, panes.rightWidth, terminalSize().height - 4);
   }
 }
 
@@ -287,11 +307,12 @@ function renderQuestionPane(doc: TkDocument, state: AppState, x: number, width: 
     renderStyledLine(doc, x, 3 + offset, width, row.segments, row.bold);
   }
 
+  const scrollX = Math.min(terminalSize().width - 1, x + width);
   if (start > 0) {
-    text(doc, x + width - 4, 3, "^", { color: "gray" }, 4);
+    text(doc, scrollX, 3, "^", { color: "gray" }, 1);
   }
   if (start < maxScroll) {
-    text(doc, x + width - 4, terminalSize().height - 4, "v", { color: "gray" }, 4);
+    text(doc, scrollX, terminalSize().height - 4, "v", { color: "gray" }, 1);
   }
 }
 
@@ -302,24 +323,54 @@ function renderUnsupportedQuestion(doc: TkDocument, state: AppState, panes: Pane
 
   const { meta, detail } = state.question;
   let y = 3;
-  text(doc, panes.leftX, y++, "This question contains a table.", { bold: true }, panes.leftWidth);
+  text(doc, panes.leftX, y++, "This question contains a table.", { color: "yellow", bold: true }, panes.leftWidth);
   y++;
-  y = printWrappedAt(doc, "The terminal renderer cannot display this table accurately enough to answer the question here.", panes.leftX, y, panes.leftWidth, terminalSize().height - 4);
+  y = printWrappedAt(
+    doc,
+    "The terminal renderer cannot display this table accurately enough to answer the question here.",
+    panes.leftX,
+    y,
+    panes.leftWidth,
+    terminalSize().height - 4,
+    false,
+    { color: "gray" },
+  );
   y++;
-  y = printWrappedAt(doc, "Open it in PracticeSAT, search this question ID, then skip it in this app.", panes.leftX, y, panes.leftWidth, terminalSize().height - 4);
+  y = printWrappedAt(
+    doc,
+    "Open it in PracticeSAT, search this question ID, then skip it in this app.",
+    panes.leftX,
+    y,
+    panes.leftWidth,
+    terminalSize().height - 4,
+    false,
+    { color: "gray" },
+  );
   y++;
-  y = printWrappedAt(doc, `Question ID: ${meta.questionId}`, panes.leftX, y, panes.leftWidth, terminalSize().height - 4);
+  y = printWrappedAt(doc, `Question ID: ${meta.questionId}`, panes.leftX, y, panes.leftWidth, terminalSize().height - 4, false, {
+    color: "yellow",
+  });
   y++;
-  y = printWrappedAt(doc, practiceQuestionUrl(state.question), panes.leftX, y, panes.leftWidth, terminalSize().height - 4);
+  y = printWrappedAt(doc, practiceQuestionUrl(state.question), panes.leftX, y, panes.leftWidth, terminalSize().height - 4, false, {
+    color: "cyan",
+  });
   y++;
-  printWrappedAt(doc, `API fallback: ${practiceQuestionApiUrl(state.question)}`, panes.leftX, y, panes.leftWidth, terminalSize().height - 4);
+  printWrappedAt(
+    doc,
+    `API fallback: ${practiceQuestionApiUrl(state.question)}`,
+    panes.leftX,
+    y,
+    panes.leftWidth,
+    terminalSize().height - 4,
+    false,
+    { color: "cyan" },
+  );
 
   let rightY = 3;
-  text(doc, panes.rightX, rightY++, `${meta.primary_class_cd} | ${meta.skill_cd}`, {}, panes.rightWidth);
-  text(doc, panes.rightX, rightY++, `difficulty ${meta.difficulty} | ${meta.questionId}`, {}, panes.rightWidth);
+  rightY = renderQuestionMetadata(doc, meta, state.attempts.get(meta.questionId), panes.rightX, rightY, panes.rightWidth);
   rightY++;
-  text(doc, panes.rightX, rightY++, "o open externally", {}, panes.rightWidth);
-  text(doc, panes.rightX, rightY++, "n/x/enter skip", {}, panes.rightWidth);
+  text(doc, panes.rightX, rightY++, "o open externally", { color: "green" }, panes.rightWidth);
+  text(doc, panes.rightX, rightY++, "n/x/enter skip", { color: "yellow" }, panes.rightWidth);
   rightY++;
   printWrappedAt(doc, htmlToText(detail.stem), panes.rightX, rightY, panes.rightWidth, terminalSize().height - 4, true);
 }
@@ -353,15 +404,136 @@ function printWrappedAt(
   width: number,
   maxY: number,
   bold = false,
+  attr: TextAttr = {},
 ): number {
   for (const row of wrapText(value ?? "", width)) {
     if (y > maxY) {
       text(doc, x, y, "...", { color: "gray" }, width);
       return y + 1;
     }
-    text(doc, x, y++, row, bold ? { bold: true } : {}, width);
+    text(doc, x, y++, row, { ...attr, ...(bold ? { bold: true } : {}) }, width);
   }
   return y;
+}
+
+function renderHistoryRow(doc: TkDocument, attempt: Attempt, selected: boolean, y: number, width: number): void {
+  const strong = selected ? { bold: true } : {};
+  text(doc, 0, y, selected ? ">" : " ", selected ? { color: "yellow", bold: true } : { color: "gray" }, 1);
+  text(doc, 2, y, attempt.question_id, { color: selected ? "yellow" : "cyan", ...strong }, 10);
+  text(doc, 13, y, attempt.outcome, { ...outcomeAttr(attempt.outcome), ...strong }, 9);
+  text(doc, 24, y, attempt.updated_at, { color: selected ? "yellow" : "gray", ...strong }, width - 24);
+}
+
+function renderSummaryRow(doc: TkDocument, row: SummaryRow, y: number, width: number): void {
+  const value = summaryValue(row);
+  const attr = summaryAttr(row);
+
+  text(doc, 0, y, summaryLabel(row.metric), { color: "gray" }, 16);
+  text(doc, 17, y, value, attr, 10);
+
+  const barWidth = width - 30;
+  if (row.metric === "accuracy" && barWidth >= 10) {
+    text(doc, 29, y, accuracyBar(row.value, Math.min(24, barWidth)), attr, barWidth);
+  }
+}
+
+function renderQuestionMetadata(
+  doc: TkDocument,
+  meta: QuestionMeta,
+  attempt: Attempt | undefined,
+  x: number,
+  y: number,
+  width: number,
+): number {
+  if (attempt) {
+    text(doc, x, y++, attempt.outcome.toUpperCase(), { ...outcomeAttr(attempt.outcome), bold: true }, width);
+  }
+
+  text(doc, x, y++, formatDomain(meta), { color: "cyan" }, width);
+  text(doc, x, y++, formatSkill(meta), { color: "cyan" }, width);
+  text(doc, x, y++, `difficulty ${meta.difficulty} | ${meta.questionId}`, difficultyAttr(meta.difficulty), width);
+
+  return y;
+}
+
+function formatDomain(meta: QuestionMeta): string {
+  return meta.primary_class_cd_desc ? `${meta.primary_class_cd}  ${meta.primary_class_cd_desc}` : meta.primary_class_cd;
+}
+
+function formatSkill(meta: QuestionMeta): string {
+  return meta.skill_desc ? `${meta.skill_cd}  ${meta.skill_desc}` : meta.skill_cd;
+}
+
+function outcomeAttr(outcome: Outcome): TextAttr {
+  if (outcome === "correct") {
+    return { color: "green" };
+  }
+  if (outcome === "incorrect") {
+    return { color: "red" };
+  }
+  return { color: "yellow" };
+}
+
+function difficultyAttr(difficulty: string): TextAttr {
+  if (difficulty === "E") {
+    return { color: "green" };
+  }
+  if (difficulty === "H") {
+    return { color: "red" };
+  }
+  return { color: "yellow" };
+}
+
+function summaryLabel(metric: string): string {
+  if (metric === "avg_seconds") {
+    return "avg seconds";
+  }
+  return metric;
+}
+
+function summaryValue(row: SummaryRow): string {
+  if (row.metric === "accuracy") {
+    return `${Math.round(readRatio(row.value) * 100)}%`;
+  }
+  if (row.metric === "avg_seconds") {
+    return `${row.value}s`;
+  }
+  return row.value;
+}
+
+function summaryAttr(row: SummaryRow): TextAttr {
+  if (row.metric === "answered") {
+    return { color: "cyan" };
+  }
+  if (row.metric === "correct") {
+    return { color: "green", bold: true };
+  }
+  if (row.metric === "incorrect") {
+    return { color: "red", bold: true };
+  }
+  if (row.metric === "corrected") {
+    return { color: "yellow", bold: true };
+  }
+  if (row.metric === "accuracy") {
+    const ratio = readRatio(row.value);
+    return ratio >= 0.8 ? { color: "green", bold: true } : ratio >= 0.6 ? { color: "yellow", bold: true } : { color: "red", bold: true };
+  }
+  return { color: "cyan" };
+}
+
+function accuracyBar(value: string, width: number): string {
+  const barWidth = Math.max(8, width - 2);
+  const ratio = readRatio(value);
+  const filled = Math.round(ratio * barWidth);
+  return `[${"#".repeat(filled)}${"-".repeat(barWidth - filled)}]`;
+}
+
+function readRatio(value: string): number {
+  const ratio = Number(value);
+  if (!Number.isFinite(ratio)) {
+    return 0;
+  }
+  return Math.min(1, Math.max(0, ratio));
 }
 
 function paneLayout(): PaneLayout {
