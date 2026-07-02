@@ -5,17 +5,18 @@ import type { TextSegment } from "../text.ts";
 import { focusGrid, normalizeFocusGridPosition, type FocusGridColumn, type FocusGridRow } from "./focus-grid.ts";
 import { historyRows } from "./history.ts";
 import {
-  answerKeys,
   practiceQuestionApiUrl,
   practiceQuestionUrl,
   questionNeedsExternalDisplay,
-  questionPageSize,
   questionRows,
 } from "./question.ts";
 import { elapsedQuestionSeconds, formatElapsed, timerStatus } from "./timer.ts";
 import { terminalSize, tk, type TkDocument } from "./kit.ts";
+import { PANE_BODY_Y, PANE_HEADER_Y, paneLayout, paneViewportHeight } from "./layout.ts";
+import { detailPaneRows, practiceAnswerPaneRows, reviewPaneRows, type PaneTextRow } from "./pane-content.ts";
 import type { AppState, PaneLayout } from "./types.ts";
 import type { Attempt, Outcome, QuestionMeta, SummaryRow } from "../types.ts";
+import { clampScroll, maxScroll, type PaneViewport } from "./viewport.ts";
 
 type TextAttr = Record<string, unknown>;
 
@@ -83,11 +84,11 @@ function footer(doc: TkDocument, state: AppState): void {
     : state.view === "focus"
       ? "up/down or j/k row | tab/shift-tab group | space toggle | enter start | q quit"
     : state.view === "review"
-      ? "pgup/pgdn or [/] scroll question | enter/n next | f focus | h history | s summary | q quit"
+      ? "tab pane | up/down/j/k scroll | pg/[ ] page | g/G edge | enter next | f focus | h history | q quit"
       : state.view === "history"
         ? "up/down or j/k move | enter open | f focus | p practice | s summary | q quit"
         : state.view === "detail"
-          ? "pgup/pgdn or [/] scroll question | esc history | f focus | p practice | q quit"
+          ? "tab pane | up/down/j/k scroll | pg/[ ] page | g/G edge | esc history | p practice | q quit"
           : state.view === "error"
             ? "r retry | q quit"
             : "p practice | h history | q quit";
@@ -174,15 +175,16 @@ function renderPractice(doc: TkDocument, state: AppState): void {
     return;
   }
 
-  renderQuestionPane(doc, state, panes.leftX, panes.leftWidth, state.questionScroll);
+  const questionContent = questionRows(state.question.detail, panes.leftWidth);
+  const answerContent = practiceAnswerPaneRows(state.question, state.selected, panes.rightWidth).rows;
+  const questionViewport = clampedViewport(state.questionScroll, questionContent.length);
+  const answerViewport = clampedViewport(state.answerScroll, answerContent.length);
+  state.questionScroll = questionViewport.scroll;
+  state.answerScroll = answerViewport.scroll;
 
-  let rightY = 3;
-  for (const [index, key] of answerKeys(state.question).entries()) {
-    const marker = index === state.selected ? ">" : " ";
-    const answer = `${marker} ${key}. ${htmlToText(state.question.detail.answerOptions[key])}`;
-    rightY = printWrappedAt(doc, answer, panes.rightX, rightY, panes.rightWidth, terminalSize().height - 4, index === state.selected);
-    rightY++;
-  }
+  renderPaneHeaders(doc, panes, state, questionViewport, answerViewport, "answers");
+  renderQuestionRows(doc, questionContent, panes.leftX, panes.leftWidth, questionViewport, state.activePane === "question");
+  renderPaneRows(doc, answerContent, panes.rightX, panes.rightWidth, answerViewport, state.activePane === "answers");
 }
 
 function renderReview(doc: TkDocument, state: AppState): void {
@@ -190,24 +192,21 @@ function renderReview(doc: TkDocument, state: AppState): void {
     return;
   }
 
-  const { meta, detail } = state.question;
   const panes = paneLayout();
-  let rightY = 3;
-  const correct = state.lastCorrect ? "correct" : "incorrect";
+  const questionContent = questionRows(state.question.detail, panes.leftWidth);
+  const reviewContent = reviewPaneRows(state.question, {
+    lastAnswer: state.lastAnswer,
+    lastCorrect: state.lastCorrect,
+    elapsed: formatElapsed(elapsedQuestionSeconds(state)),
+  }, panes.rightWidth);
+  const questionViewport = clampedViewport(state.questionScroll, questionContent.length);
+  const answerViewport = clampedViewport(state.answerScroll, reviewContent.length);
+  state.questionScroll = questionViewport.scroll;
+  state.answerScroll = answerViewport.scroll;
 
-  text(doc, panes.rightX, rightY++, correct.toUpperCase(), { color: state.lastCorrect ? "green" : "red", bold: true }, panes.rightWidth);
-  text(doc, panes.rightX, rightY++, `your answer: ${state.lastAnswer ?? "-"}`, { color: state.lastCorrect ? "green" : "red" }, panes.rightWidth);
-  text(doc, panes.rightX, rightY++, `correct: ${detail.correct_answer.join(", ")}`, { color: "green" }, panes.rightWidth);
-  text(doc, panes.rightX, rightY++, `time: ${formatElapsed(elapsedQuestionSeconds(state))}`, { color: "cyan" }, panes.rightWidth);
-  rightY++;
-  text(doc, panes.rightX, rightY++, formatDomain(meta), { color: "cyan" }, panes.rightWidth);
-  text(doc, panes.rightX, rightY++, formatSkill(meta), { color: "cyan" }, panes.rightWidth);
-  text(doc, panes.rightX, rightY++, `difficulty ${meta.difficulty} | ${meta.questionId}`, difficultyAttr(meta.difficulty), panes.rightWidth);
-  rightY++;
-  text(doc, panes.rightX, rightY++, "rationale", { bold: true }, panes.rightWidth);
-  printWrappedAt(doc, htmlToText(detail.rationale), panes.rightX, rightY, panes.rightWidth, terminalSize().height - 4);
-
-  renderQuestionPane(doc, state, panes.leftX, panes.leftWidth, state.questionScroll);
+  renderPaneHeaders(doc, panes, state, questionViewport, answerViewport, "review");
+  renderQuestionRows(doc, questionContent, panes.leftX, panes.leftWidth, questionViewport, state.activePane === "question");
+  renderPaneRows(doc, reviewContent, panes.rightX, panes.rightWidth, answerViewport, state.activePane === "answers");
 }
 
 function renderHistory(doc: TkDocument, state: AppState): void {
@@ -245,7 +244,6 @@ function renderSummary(doc: TkDocument, state: AppState): void {
 
 function renderDetail(doc: TkDocument, state: AppState): void {
   const panes = paneLayout();
-  let rightY = 3;
   if (!state.detailQuestion) {
     text(doc, 0, 3, "Could not fetch details for this question.");
     return;
@@ -258,62 +256,21 @@ function renderDetail(doc: TkDocument, state: AppState): void {
     return;
   }
 
-  rightY = renderQuestionMetadata(doc, meta, attempt, panes.rightX, rightY, panes.rightWidth);
-  rightY++;
+  const questionContent = questionRows(detail, panes.leftWidth);
+  const detailContent = detailPaneRows(state.detailQuestion, attempt, panes.rightWidth);
+  const questionViewport = clampedViewport(state.questionScroll, questionContent.length);
+  const answerViewport = clampedViewport(state.answerScroll, detailContent.length);
+  state.questionScroll = questionViewport.scroll;
+  state.answerScroll = answerViewport.scroll;
 
-  renderQuestionPane(doc, { ...state, question: state.detailQuestion }, panes.leftX, panes.leftWidth, state.questionScroll);
-
-  text(doc, panes.rightX, rightY, "answer key", { color: "cyan", bold: true }, panes.rightWidth);
-  text(doc, panes.rightX + 12, rightY++, `correct: ${detail.correct_answer.join(", ")}`, { color: "green", bold: true }, panes.rightWidth - 12);
-  for (const key of answerKeys(state.detailQuestion)) {
-    const correct = detail.correct_answer.includes(key);
-    const label = correct ? "*" : " ";
-    rightY = printWrappedAt(
-      doc,
-      `${label} ${key}. ${htmlToText(detail.answerOptions[key])}`,
-      panes.rightX,
-      rightY,
-      panes.rightWidth,
-      terminalSize().height - 4,
-      correct,
-      correct ? { color: "green" } : { color: "gray" },
-    );
-    rightY++;
-  }
-
-  if (detail.rationale && rightY < terminalSize().height - 7) {
-    rightY++;
-    text(doc, panes.rightX, rightY++, "rationale", { color: "cyan", bold: true }, panes.rightWidth);
-    printWrappedAt(doc, htmlToText(detail.rationale), panes.rightX, rightY, panes.rightWidth, terminalSize().height - 4);
-  }
+  renderPaneHeaders(doc, panes, state, questionViewport, answerViewport, "answers");
+  renderQuestionRows(doc, questionContent, panes.leftX, panes.leftWidth, questionViewport, state.activePane === "question");
+  renderPaneRows(doc, detailContent, panes.rightX, panes.rightWidth, answerViewport, state.activePane === "answers");
 }
 
 function renderError(doc: TkDocument, state: AppState): void {
   text(doc, 0, 3, "Something went wrong.", { bold: true, color: "red" });
   printWrappedAt(doc, state.error ?? "Unknown error.", 0, 5, terminalSize().width - 1, terminalSize().height - 4);
-}
-
-function renderQuestionPane(doc: TkDocument, state: AppState, x: number, width: number, scroll: number): void {
-  if (!state.question) {
-    return;
-  }
-
-  const rows = questionRows(state.question.detail, width);
-  const maxRows = questionPageSize();
-  const maxScroll = Math.max(0, rows.length - maxRows);
-  const start = Math.min(scroll, maxScroll);
-
-  for (const [offset, row] of rows.slice(start, start + maxRows).entries()) {
-    renderStyledLine(doc, x, 3 + offset, width, row.segments, row.bold);
-  }
-
-  const scrollX = Math.min(terminalSize().width - 1, x + width);
-  if (start > 0) {
-    text(doc, scrollX, 3, "^", { color: "gray" }, 1);
-  }
-  if (start < maxScroll) {
-    text(doc, scrollX, terminalSize().height - 4, "v", { color: "gray" }, 1);
-  }
 }
 
 function renderUnsupportedQuestion(doc: TkDocument, state: AppState, panes: PaneLayout): void {
@@ -373,6 +330,92 @@ function renderUnsupportedQuestion(doc: TkDocument, state: AppState, panes: Pane
   text(doc, panes.rightX, rightY++, "n/x/enter skip", { color: "yellow" }, panes.rightWidth);
   rightY++;
   printWrappedAt(doc, htmlToText(detail.stem), panes.rightX, rightY, panes.rightWidth, terminalSize().height - 4, true);
+}
+
+function renderPaneHeaders(
+  doc: TkDocument,
+  panes: PaneLayout,
+  state: AppState,
+  questionViewport: PaneViewport,
+  answerViewport: PaneViewport,
+  rightLabel: string,
+): void {
+  renderPaneHeader(doc, panes.leftX, panes.leftWidth, "question", state.activePane === "question", questionViewport);
+  renderPaneHeader(doc, panes.rightX, panes.rightWidth, rightLabel, state.activePane === "answers", answerViewport);
+}
+
+function renderPaneHeader(doc: TkDocument, x: number, width: number, label: string, active: boolean, viewport: PaneViewport): void {
+  const attr = active ? { color: "cyan", underline: true } : { color: "gray" };
+  text(doc, x, PANE_HEADER_Y, label, attr, width);
+
+  if (maxScroll(viewport) === 0) {
+    return;
+  }
+
+  const end = Math.min(viewport.contentRows, viewport.scroll + viewport.height);
+  const position = `${viewport.scroll + 1}-${end}/${viewport.contentRows}`;
+  text(doc, Math.max(x, x + width - position.length), PANE_HEADER_Y, position, active ? { color: "cyan" } : { color: "gray" }, width);
+}
+
+function renderQuestionRows(
+  doc: TkDocument,
+  rows: ReturnType<typeof questionRows>,
+  x: number,
+  width: number,
+  viewport: PaneViewport,
+  active: boolean,
+): void {
+  for (const [offset, row] of rows.slice(viewport.scroll, viewport.scroll + viewport.height).entries()) {
+    renderStyledLine(doc, x, PANE_BODY_Y + offset, width, row.segments, row.bold);
+  }
+
+  renderScrollGutter(doc, x, width, viewport, active);
+}
+
+function renderPaneRows(doc: TkDocument, rows: PaneTextRow[], x: number, width: number, viewport: PaneViewport, active: boolean): void {
+  for (const [offset, row] of rows.slice(viewport.scroll, viewport.scroll + viewport.height).entries()) {
+    text(doc, x, PANE_BODY_Y + offset, row.text, paneRowAttr(row), width);
+  }
+
+  renderScrollGutter(doc, x, width, viewport, active);
+}
+
+function renderScrollGutter(doc: TkDocument, x: number, width: number, viewport: PaneViewport, active: boolean): void {
+  const scrollX = Math.min(terminalSize().width - 1, x + width);
+  const attr = active ? { color: "cyan" } : { color: "gray" };
+  if (viewport.scroll > 0) {
+    text(doc, scrollX, PANE_BODY_Y, "^", attr, 1);
+  }
+  if (viewport.scroll < maxScroll(viewport)) {
+    text(doc, scrollX, PANE_BODY_Y + viewport.height - 1, "v", attr, 1);
+  }
+}
+
+function clampedViewport(scroll: number, contentRows: number): PaneViewport {
+  const viewport = { scroll, height: paneViewportHeight(), contentRows };
+  return { ...viewport, scroll: clampScroll(viewport) };
+}
+
+function paneRowAttr(row: PaneTextRow): TextAttr {
+  const attr: TextAttr = row.bold ? { bold: true } : {};
+
+  if (row.kind === "muted") {
+    return { ...attr, color: "gray" };
+  }
+  if (row.kind === "heading" || row.kind === "info") {
+    return { ...attr, color: "cyan", ...(row.kind === "heading" ? { bold: true } : {}) };
+  }
+  if (row.kind === "success") {
+    return { ...attr, color: "green" };
+  }
+  if (row.kind === "danger") {
+    return { ...attr, color: "red" };
+  }
+  if (row.kind === "warning" || row.kind === "selected") {
+    return { ...attr, color: "yellow", ...(row.kind === "selected" ? { bold: true } : {}) };
+  }
+
+  return attr;
 }
 
 function renderStyledLine(doc: TkDocument, x: number, y: number, width: number, segments: TextSegment[], forceBold = false): void {
@@ -536,22 +579,6 @@ function readRatio(value: string): number {
   return Math.min(1, Math.max(0, ratio));
 }
 
-function paneLayout(): PaneLayout {
-  const { width } = terminalSize();
-  const gutter = 2;
-  const usable = Math.max(40, width - gutter);
-  const leftWidth = Math.max(20, Math.floor(usable / 2));
-  const rightX = leftWidth + gutter;
-  const rightWidth = Math.max(20, width - rightX);
-
-  return {
-    leftX: 0,
-    leftWidth,
-    rightX,
-    rightWidth,
-  };
-}
-
 function text(doc: TkDocument, x: number, y: number, value: string, attr: TextAttr = {}, width = terminalSize().width - x): void {
   if (y < 0 || y >= terminalSize().height || width <= 0) {
     return;
@@ -587,5 +614,5 @@ function practiceControls(state: AppState): string {
     return "space pause/resume | t timer | o open externally | n/x/enter skip | f focus | h history | s summary | q quit";
   }
 
-  return "space pause/resume | t timer | up/down or j/k move | pgup/pgdn or [/] scroll question | enter submit | f focus | h history | s summary | q quit";
+  return "space pause/resume | t timer | tab pane | up/down/j/k move/scroll | pg/[ ] page | g/G edge | enter submit | q quit";
 }

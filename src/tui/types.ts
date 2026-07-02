@@ -1,5 +1,6 @@
 import type { Attempt, Focus, PracticeQuestion } from "../types.ts";
 import type { TextSegment } from "../text.ts";
+import type { PaneId } from "./viewport.ts";
 
 export type View = "focus" | "loading" | "practice" | "review" | "history" | "summary" | "detail" | "error";
 
@@ -15,6 +16,8 @@ export type AppState = {
   question?: PracticeQuestion;
   selected: number;
   questionScroll: number;
+  answerScroll: number;
+  activePane: PaneId;
   elapsedMs: number;
   timerStartedAt?: number;
   timerPaused: boolean;
