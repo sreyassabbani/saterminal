@@ -49,6 +49,13 @@ export function skillsForDomain(domain: Domain): readonly Skill[] {
   return skillsByDomain[domain];
 }
 
+export function focusSummary(focus: Focus): string {
+  const difficulty = focus.difficulties.join(",");
+  const skillCount = focus.skills.length;
+  const domainCount = focus.domains.length;
+  return `${skillCount} skills · ${difficulty} · ${domainCount} domains`;
+}
+
 export function focusRows(focus: Focus): FocusRow[] {
   return [
     { kind: "header", label: "Difficulty" },
@@ -197,20 +204,20 @@ function unique<T>(values: T[]): T[] {
   return values.filter((value, index, list) => list.indexOf(value) === index);
 }
 
-const difficultyLabels: Record<Difficulty, string> = {
+export const difficultyLabels: Record<Difficulty, string> = {
   E: "Easy",
   M: "Medium",
   H: "Hard",
 };
 
-const domainLabels: Record<Domain, string> = {
+export const domainLabels: Record<Domain, string> = {
   INI: "Information and Ideas",
   CAS: "Craft and Structure",
   EOI: "Expression of Ideas",
   SEC: "Standard English Conventions",
 };
 
-const skillLabels: Record<Skill, string> = {
+export const skillLabels: Record<Skill, string> = {
   CID: "Central Ideas and Details",
   INF: "Inferences",
   COE: "Command of Evidence",

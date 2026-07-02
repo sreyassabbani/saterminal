@@ -41,6 +41,30 @@ describe("state", () => {
     expect(attempts.get("abc12345")?.outcome).toBe("corrected");
   });
 
+  test("loads escaped csv fields", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "satui-"));
+    const path = join(dir, "attempts.csv");
+
+    try {
+      await writeFile(
+        path,
+        "question_id,outcome,updated_at,elapsed_seconds\n\"abc,123\",correct,\"2026-01-01T00:00:00.000Z\",12\n",
+        "utf8",
+      );
+
+      expect(await loadAttempts(path)).toEqual(new Map([
+        ["abc,123", {
+          question_id: "abc,123",
+          outcome: "correct",
+          updated_at: "2026-01-01T00:00:00.000Z",
+          elapsed_seconds: 12,
+        }],
+      ]));
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   test("does not downgrade mastered outcomes", () => {
     expect(nextOutcome("correct", false)).toBe("correct");
     expect(nextOutcome("corrected", false)).toBe("corrected");

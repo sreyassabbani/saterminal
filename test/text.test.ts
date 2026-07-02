@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { hasHtmlTable, htmlToText, wrapText } from "../src/text.ts";
+import { hasHtmlTable, htmlToText, parseHtmlSegments, wrapSegments, wrapText } from "../src/text.ts";
 
 describe("text", () => {
   test("converts the API html subset into terminal text", () => {
@@ -33,5 +33,40 @@ describe("text", () => {
 
   test("wraps text without dropping words", () => {
     expect(wrapText("one two three four", 8)).toEqual(["one two", "three", "four"]);
+  });
+
+  test("preserves underline segments from u tags", () => {
+    const segments = parseHtmlSegments("<p>Before <u>underlined claim</u> after.</p>");
+    expect(segments.some((segment) => segment.style.underline && segment.text.includes("underlined claim"))).toBe(true);
+    expect(htmlToText("<p>Before <u>underlined claim</u> after.</p>")).toBe("Before underlined claim after.");
+  });
+
+  test("normalizes API blank spans in parsed segments", () => {
+    const html =
+      '<p>The answer is <span aria-hidden="true">______</span><span class="sr-only">blank</span> because of the data.</p>';
+    const text = parseHtmlSegments(html)
+      .map((segment) => segment.text)
+      .join("")
+      .trim();
+    expect(text).toBe("The answer is _______ because of the data.");
+  });
+
+  test("wraps styled segments without losing underline spans", () => {
+    const segments = parseHtmlSegments("<u>This insightful depiction of a preteen girl</u>");
+    const lines = wrapSegments(segments, 20);
+    expect(lines.flat().some((segment) => segment.style.underline)).toBe(true);
+  });
+
+  test("collapses spacer paragraphs and decodes accented entities in dual-text stimuli", () => {
+    const html = `<p><strong><span role="heading">Text 1</span></strong></p>
+<p>the object that struck the Yucat&aacute;n Peninsula</p>
+<p>&nbsp;</p>
+<p><strong><span role="heading">Text 2</span></strong></p>
+<p>Artemieva argues that an asteroid is plausible.</p>`;
+    const lines = wrapSegments(parseHtmlSegments(html), 40).map((line) => line.map((segment) => segment.text).join(""));
+    const blankLines = lines.filter((line) => !line.trim()).length;
+    expect(blankLines).toBeLessThanOrEqual(2);
+    expect(lines.join("\n")).toContain("Yucatán");
+    expect(lines.join("\n")).not.toContain("&aacute;");
   });
 });
