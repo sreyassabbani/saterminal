@@ -22,6 +22,10 @@ const ansi = {
   green: "\x1b[32m",
   yellow: "\x1b[33m",
   cyan: "\x1b[36m",
+  bgGray: "\x1b[100m",
+  bgRed: "\x1b[41m",
+  bgGreen: "\x1b[42m",
+  bgYellow: "\x1b[43m",
 } as const;
 
 type Writable = {
@@ -253,24 +257,26 @@ function formatPrettyStats(stats: ReturnType<typeof statsObject>): string {
       `${paint(formatDuration(Math.round(stats.avg_seconds)), ansi.cyan, ansi.bold)} avg`,
     ].join("  "),
     "",
-    metricBar("correct", stats.correct, stats.answered, ansi.green),
-    metricBar("incorrect", stats.incorrect, stats.answered, ansi.red),
-    metricBar("corrected", stats.corrected, stats.answered, ansi.yellow),
+    metricBar("correct", stats.correct, stats.answered, ansi.green, ansi.bgGreen),
+    metricBar("incorrect", stats.incorrect, stats.answered, ansi.red, ansi.bgRed),
+    metricBar("corrected", stats.corrected, stats.answered, ansi.yellow, ansi.bgYellow),
   ].join("\n");
 }
 
-function metricBar(label: string, value: number, total: number, color: string): string {
+function metricBar(label: string, value: number, total: number, color: string, bgColor: string): string {
   const labelText = paint(label.padEnd(9), color, ansi.bold);
   const valueText = paint(String(value).padStart(3), ansi.bold);
-  return `${labelText} ${valueText}  ${bar(value, total, color)}`;
+  return `${labelText} ${valueText}  ${bar(value, total, color, bgColor)}`;
 }
 
-function bar(value: number, total: number, color: string): string {
+function bar(value: number, total: number, color: string, bgColor: string): string {
   const width = 24;
   const ratio = total === 0 ? 0 : value / total;
   const parts = progressBar(ratio, width);
-  const filled = parts.filled ? paint(parts.filled, color) : "";
-  return `${filled}${muted(parts.empty)}`;
+  const filled = parts.fullCells > 0 ? paint(" ".repeat(parts.fullCells), bgColor) : "";
+  const partial = parts.partial ? paint(parts.partial, color, ansi.bgGray) : "";
+  const empty = parts.emptyCells > 0 ? paint(" ".repeat(parts.emptyCells), ansi.bgGray) : "";
+  return `${filled}${partial}${empty}`;
 }
 
 function prettyTable(headers: string[], rows: string[][]): string {
