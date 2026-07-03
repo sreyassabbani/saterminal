@@ -45,10 +45,12 @@ describe("cli", () => {
       },
     ]);
 
-    expect(formatHistory([...attempts.values()], "pretty")).toContain("history\nquestion");
-    expect(formatHistory([...attempts.values()], "pretty")).toContain("newer");
-    expect(formatHistory([...attempts.values()], "pretty")).toContain("correct");
-    expect(formatHistory([...attempts.values()], "pretty")).toContain("1:05");
+    const pretty = formatHistory([...attempts.values()], "pretty");
+    expect(pretty).toContain("\x1b[");
+    expect(stripAnsi(pretty)).toContain("history\n2 attempts  1 mastered  1 needs review");
+    expect(stripAnsi(pretty)).toContain("newer");
+    expect(stripAnsi(pretty)).toContain("correct");
+    expect(stripAnsi(pretty)).toContain("1:05");
   });
 
   test("formats stats with numeric JSON and human percentages", () => {
@@ -65,7 +67,11 @@ describe("cli", () => {
       accuracy: 0.5,
       avg_seconds: 30,
     });
-    expect(formatStats(rows, "pretty")).toContain("accuracy     50%");
+    const pretty = formatStats(rows, "pretty");
+    expect(pretty).toContain("\x1b[");
+    expect(stripAnsi(pretty)).toContain("stats\n2 answered  50% accuracy  0:30 avg");
+    expect(stripAnsi(pretty)).toContain("correct     1");
+    expect(stripAnsi(pretty)).toContain("incorrect   1");
     expect(formatStats(rows, "text")).toContain("avg seconds  30.0s");
   });
 
@@ -74,7 +80,12 @@ describe("cli", () => {
 
     expect(formatFocus(focus, "json")).toBe(JSON.stringify(focus));
     expect(formatFocus(focus, "text")).toBe("difficulties: H\ndomains: CAS\nskills: WIC");
-    expect(formatFocus(focus, "pretty")).toContain("H  Hard");
-    expect(formatFocus(defaultFocus, "pretty")).toContain("10 skills");
+    expect(formatFocus(focus, "pretty")).toContain("\x1b[");
+    expect(stripAnsi(formatFocus(focus, "pretty"))).toContain("H   Hard");
+    expect(stripAnsi(formatFocus(defaultFocus, "pretty"))).toContain("10 skills");
   });
 });
+
+function stripAnsi(value: string): string {
+  return value.replace(/\x1b\[[0-9;]*m/g, "");
+}

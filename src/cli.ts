@@ -12,6 +12,16 @@ export type ParsedCli =
   | { kind: "command"; command: CliCommand; format: OutputFormat };
 
 const commands = new Set<CliCommand>(["history", "stats", "focus"]);
+const ansi = {
+  reset: "\x1b[0m",
+  bold: "\x1b[1m",
+  dim: "\x1b[2m",
+  gray: "\x1b[90m",
+  red: "\x1b[31m",
+  green: "\x1b[32m",
+  yellow: "\x1b[33m",
+  cyan: "\x1b[36m",
+} as const;
 
 type Writable = {
   write(value: string): unknown;
@@ -117,7 +127,11 @@ export function formatHistory(attempts: Attempt[], format: OutputFormat): string
   }
 
   if (rows.length === 0) {
-    return format === "pretty" ? "history\nNo attempts recorded." : "No attempts recorded.";
+    return format === "pretty" ? [heading("history"), muted("No attempts recorded.")].join("\n") : "No attempts recorded.";
+  }
+
+  if (format === "pretty") {
+    return formatPrettyHistory(rows);
   }
 
   const table = formatTable(
@@ -128,10 +142,10 @@ export function formatHistory(attempts: Attempt[], format: OutputFormat): string
       attempt.updated_at,
       formatDuration(attempt.elapsed_seconds),
     ]),
-    format === "pretty",
+    false,
   );
 
-  return format === "pretty" ? `history\n${table}` : table;
+  return table;
 }
 
 export function formatStats(rows: SummaryRow[], format: OutputFormat): string {
@@ -149,9 +163,12 @@ export function formatStats(rows: SummaryRow[], format: OutputFormat): string {
     ["accuracy", `${Math.round(stats.accuracy * 100)}%`],
     ["avg seconds", `${stats.avg_seconds.toFixed(1)}s`],
   ];
-  const table = formatTable(["metric", "value"], entries, format === "pretty");
 
-  return format === "pretty" ? `stats\n${table}` : table;
+  if (format === "pretty") {
+    return formatPrettyStats(stats);
+  }
+
+  return formatTable(["metric", "value"], entries, false);
 }
 
 export function formatFocus(focus: Focus, format: OutputFormat): string {
@@ -161,17 +178,17 @@ export function formatFocus(focus: Focus, format: OutputFormat): string {
 
   if (format === "pretty") {
     return [
-      "focus",
-      focusSummary(focus),
+      heading("focus"),
+      muted(focusSummary(focus)),
       "",
-      "difficulties",
-      ...focus.difficulties.map((value) => `  ${value}  ${difficultyLabels[value]}`),
+      section("difficulty"),
+      ...focus.difficulties.map((value) => option(value, difficultyLabels[value], ansi.yellow)),
       "",
-      "domains",
-      ...focus.domains.map((value) => `  ${value}  ${domainLabels[value]}`),
+      section("domains"),
+      ...focus.domains.map((value) => option(value, domainLabels[value], ansi.cyan)),
       "",
-      "skills",
-      ...focus.skills.map((value) => `  ${value}  ${skillLabels[value]}`),
+      section("skills"),
+      ...focus.skills.map((value) => option(value, skillLabels[value], ansi.green)),
     ].join("\n");
   }
 
@@ -192,12 +209,76 @@ export function helpText(): string {
     "  focus    Show current practice focus",
     "",
     "options:",
-    "  -p, --pretty  Use expanded human-readable output",
+    "  -p, --pretty  Use colorized human-readable output",
     "      --json    Output JSON",
     "  -h, --help    Show this help",
     "",
     "Run `sat` with no command to open the interactive TUI.",
   ].join("\n");
+}
+
+function formatPrettyHistory(rows: Attempt[]): string {
+  const mastered = rows.filter((attempt) => attempt.outcome === "correct" || attempt.outcome === "corrected").length;
+  const missed = rows.filter((attempt) => attempt.outcome === "incorrect").length;
+  const averageSeconds = rows.reduce((sum, attempt) => sum + attempt.elapsed_seconds, 0) / rows.length;
+  const tableRows = rows.map((attempt) => [
+    paint(attempt.question_id, ansi.cyan),
+    paint(attempt.outcome, outcomeColor(attempt.outcome), ansi.bold),
+    paint(formatDuration(attempt.elapsed_seconds), ansi.yellow),
+    muted(formatTimestamp(attempt.updated_at)),
+  ]);
+
+  return [
+    heading("history"),
+    [
+      `${paint(String(rows.length), ansi.bold)} attempts`,
+      `${paint(String(mastered), ansi.green, ansi.bold)} mastered`,
+      `${paint(String(missed), missed > 0 ? ansi.red : ansi.gray, ansi.bold)} needs review`,
+      `${paint(formatDuration(Math.round(averageSeconds)), ansi.cyan, ansi.bold)} avg`,
+    ].join("  "),
+    "",
+    prettyTable(["question", "result", "time", "updated"], tableRows),
+  ].join("\n");
+}
+
+function formatPrettyStats(stats: ReturnType<typeof statsObject>): string {
+  const accuracyPercent = Math.round(stats.accuracy * 100);
+
+  return [
+    heading("stats"),
+    [
+      `${paint(String(stats.answered), ansi.bold)} answered`,
+      `${paint(`${accuracyPercent}%`, accuracyColor(stats.accuracy), ansi.bold)} accuracy`,
+      `${paint(formatDuration(Math.round(stats.avg_seconds)), ansi.cyan, ansi.bold)} avg`,
+    ].join("  "),
+    "",
+    metricBar("correct", stats.correct, stats.answered, ansi.green),
+    metricBar("incorrect", stats.incorrect, stats.answered, ansi.red),
+    metricBar("corrected", stats.corrected, stats.answered, ansi.yellow),
+  ].join("\n");
+}
+
+function metricBar(label: string, value: number, total: number, color: string): string {
+  const labelText = paint(label.padEnd(9), color, ansi.bold);
+  const valueText = paint(String(value).padStart(3), ansi.bold);
+  return `${labelText} ${valueText}  ${bar(value, total, color)}`;
+}
+
+function bar(value: number, total: number, color: string): string {
+  const width = 24;
+  const filled = total === 0 ? 0 : Math.round((value / total) * width);
+  const filledBar = filled > 0 ? paint("#".repeat(filled), color) : "";
+  return `${filledBar}${muted("-".repeat(width - filled))}`;
+}
+
+function prettyTable(headers: string[], rows: string[][]): string {
+  const widths = headers.map((header, index) => Math.max(header.length, ...rows.map((row) => visibleLength(row[index] ?? ""))));
+  const lines = [
+    headers.map((header, index) => muted(header.padEnd(widths[index] ?? header.length))).join("  ").trimEnd(),
+  ];
+
+  lines.push(...rows.map((row) => row.map((value, index) => padEndVisible(value, widths[index] ?? visibleLength(value))).join("  ").trimEnd()));
+  return lines.join("\n");
 }
 
 function statsObject(rows: SummaryRow[]): {
@@ -224,6 +305,19 @@ function readNumber(value: string | undefined): number {
   return Number.isFinite(number) ? number : 0;
 }
 
+function formatTimestamp(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  const month = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][date.getUTCMonth()];
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  const hour = String(date.getUTCHours()).padStart(2, "0");
+  const minute = String(date.getUTCMinutes()).padStart(2, "0");
+  return `${month} ${day} ${date.getUTCFullYear()} ${hour}:${minute}`;
+}
+
 function formatDuration(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
   const remaining = seconds % 60;
@@ -244,4 +338,52 @@ function formatTable(headers: string[], rows: string[][], separator: boolean): s
 
 function formatTableRow(row: string[], widths: number[]): string {
   return row.map((value, index) => value.padEnd(widths[index] ?? value.length)).join("  ").trimEnd();
+}
+
+function heading(value: string): string {
+  return paint(value, ansi.bold, ansi.cyan);
+}
+
+function section(value: string): string {
+  return paint(value, ansi.bold);
+}
+
+function option(code: string, label: string, color: string): string {
+  return `  ${paint(code.padEnd(3), color, ansi.bold)} ${label}`;
+}
+
+function muted(value: string): string {
+  return paint(value, ansi.gray);
+}
+
+function outcomeColor(outcome: Attempt["outcome"]): string {
+  if (outcome === "correct") {
+    return ansi.green;
+  }
+  if (outcome === "corrected") {
+    return ansi.yellow;
+  }
+  return ansi.red;
+}
+
+function accuracyColor(accuracy: number): string {
+  if (accuracy >= 0.8) {
+    return ansi.green;
+  }
+  if (accuracy >= 0.6) {
+    return ansi.yellow;
+  }
+  return ansi.red;
+}
+
+function paint(value: string, ...styles: string[]): string {
+  return `${styles.join("")}${value}${ansi.reset}`;
+}
+
+function padEndVisible(value: string, width: number): string {
+  return `${value}${" ".repeat(Math.max(0, width - visibleLength(value)))}`;
+}
+
+function visibleLength(value: string): number {
+  return value.replace(/\x1b\[[0-9;]*m/g, "").length;
 }
