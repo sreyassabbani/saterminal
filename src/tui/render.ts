@@ -2,6 +2,7 @@ import { buildSummaryRows, displayStateDir, stateDir } from "../state.ts";
 import { focusSummary } from "../focus.ts";
 import { htmlToText, wrapText } from "../text.ts";
 import type { TextSegment } from "../text.ts";
+import { Frame, FrameRenderer, TerminalFrameOutput, truncate, type TextAttr } from "./frame.ts";
 import { focusGrid, normalizeFocusGridPosition, type FocusGridColumn, type FocusGridRow } from "./focus-grid.ts";
 import { historyRows } from "./history.ts";
 import {
@@ -11,64 +12,59 @@ import {
   questionRows,
 } from "./question.ts";
 import { elapsedQuestionSeconds, formatElapsed, timerStatus } from "./timer.ts";
-import { terminalSize, tk, type TkDocument } from "./kit.ts";
+import { term, terminalSize } from "./kit.ts";
 import { PANE_BODY_Y, PANE_HEADER_Y, paneLayout, paneViewportHeight } from "./layout.ts";
 import { detailPaneRows, practiceAnswerPaneRows, reviewPaneRows, type PaneTextRow } from "./pane-content.ts";
 import type { AppState, PaneLayout } from "./types.ts";
 import type { Attempt, Outcome, QuestionMeta, SummaryRow } from "../types.ts";
 import { clampScroll, maxScroll, type PaneViewport } from "./viewport.ts";
 
-type TextAttr = Record<string, unknown>;
-
-export function createDocument(): TkDocument {
-  return new tk.Document({
-    eventSource: tk.terminal,
-    outputDst: tk.terminal,
-    backgroundAttr: {},
-  });
+export function createFrameRenderer(): FrameRenderer {
+  return new FrameRenderer(new TerminalFrameOutput(term));
 }
 
-export function render(doc: TkDocument, state: AppState): void {
-  doc.clear();
+export function render(renderer: FrameRenderer, state: AppState): void {
+  const { width, height } = terminalSize();
+  const frame = new Frame(width, height);
 
   if (state.view === "practice" && state.timerPaused) {
-    renderPaused(doc);
-    footer(doc, state);
-    doc.draw();
+    renderPaused(frame);
+    footer(frame, state);
+    renderer.draw(frame);
     return;
   }
 
-  header(doc, state);
+  header(frame, state);
 
   if (state.view === "loading") {
-    renderLoading(doc);
+    renderLoading(frame);
   } else if (state.view === "setup") {
-    renderSetup(doc);
+    renderSetup(frame);
   } else if (state.view === "focus") {
-    renderFocus(doc, state);
+    renderFocus(frame, state);
   } else if (state.view === "practice") {
-    renderPractice(doc, state);
+    renderPractice(frame, state);
   } else if (state.view === "review") {
-    renderReview(doc, state);
+    renderReview(frame, state);
   } else if (state.view === "history") {
-    renderHistory(doc, state);
+    renderHistory(frame, state);
   } else if (state.view === "summary") {
-    renderSummary(doc, state);
+    renderSummary(frame, state);
   } else if (state.view === "detail") {
-    renderDetail(doc, state);
+    renderDetail(frame, state);
   } else if (state.view === "error") {
-    renderError(doc, state);
+    renderError(frame, state);
   }
 
-  footer(doc, state);
-  doc.draw();
+  footer(frame, state);
+  renderer.draw(frame);
 }
 
-function renderLoading(doc: TkDocument): void {
+function renderLoading(doc: Frame): void {
   text(doc, 0, 3, "Loading...");
 }
 
-function renderSetup(doc: TkDocument): void {
+function renderSetup(doc: Frame): void {
   const { width } = terminalSize();
   const location = displayStateDir(stateDir);
 
@@ -78,13 +74,13 @@ function renderSetup(doc: TkDocument): void {
   text(doc, 0, 9, location, { color: "cyan" }, width);
 }
 
-function renderPaused(doc: TkDocument): void {
+function renderPaused(doc: Frame): void {
   const { width, height } = terminalSize();
   const label = "PAUSED";
   text(doc, Math.max(0, Math.floor((width - label.length) / 2)), Math.max(0, Math.floor(height / 2)), label, { bold: true });
 }
 
-function header(doc: TkDocument, state: AppState): void {
+function header(doc: Frame, state: AppState): void {
   const { width } = terminalSize();
   const answered = state.attempts.size;
   const timer = state.timerHidden ? "" : `  time ${formatElapsed(elapsedQuestionSeconds(state))}${timerStatus(state)}`;
@@ -93,7 +89,7 @@ function header(doc: TkDocument, state: AppState): void {
   text(doc, 0, 1, "-".repeat(width), { color: "gray" }, width);
 }
 
-function footer(doc: TkDocument, state: AppState): void {
+function footer(doc: Frame, state: AppState): void {
   const { width, height } = terminalSize();
   const controls = state.view === "setup"
     ? "y allow | n decline | q quit"
@@ -115,7 +111,7 @@ function footer(doc: TkDocument, state: AppState): void {
   text(doc, 0, Math.max(0, height - 1), controls, { color: "gray" }, width);
 }
 
-function renderFocus(doc: TkDocument, state: AppState): void {
+function renderFocus(doc: Frame, state: AppState): void {
   const { width } = terminalSize();
   const columns = focusGrid(state.focus);
   const position = normalizeFocusGridPosition(columns, { column: state.focusColumn, row: state.focusRow });
@@ -131,7 +127,7 @@ function renderFocus(doc: TkDocument, state: AppState): void {
   renderDomainColumns(doc, columns.slice(1), position.column - 1, position.row);
 }
 
-function renderDifficultyColumn(doc: TkDocument, column: FocusGridColumn, selectedRow: number): void {
+function renderDifficultyColumn(doc: Frame, column: FocusGridColumn, selectedRow: number): void {
   text(doc, 0, 6, column.title, { color: "cyan", bold: true });
 
   for (const [index, row] of column.rows.entries()) {
@@ -140,7 +136,7 @@ function renderDifficultyColumn(doc: TkDocument, column: FocusGridColumn, select
   }
 }
 
-function renderDomainColumns(doc: TkDocument, columns: FocusGridColumn[], selectedColumn: number, selectedRow: number): void {
+function renderDomainColumns(doc: Frame, columns: FocusGridColumn[], selectedColumn: number, selectedRow: number): void {
   const { width } = terminalSize();
   const startY = 11;
   const gap = 4;
@@ -170,7 +166,7 @@ function focusOptionText(row: FocusGridRow, focused: boolean): string {
 }
 
 function writeFocusOption(
-  doc: TkDocument,
+  doc: Frame,
   x: number,
   y: number,
   value: string,
@@ -182,7 +178,7 @@ function writeFocusOption(
   text(doc, x, y, value, attr, width);
 }
 
-function renderPractice(doc: TkDocument, state: AppState): void {
+function renderPractice(doc: Frame, state: AppState): void {
   if (!state.question) {
     return;
   }
@@ -205,7 +201,7 @@ function renderPractice(doc: TkDocument, state: AppState): void {
   renderPaneRows(doc, answerContent, panes.rightX, panes.rightWidth, answerViewport, state.activePane === "answers");
 }
 
-function renderReview(doc: TkDocument, state: AppState): void {
+function renderReview(doc: Frame, state: AppState): void {
   if (!state.question) {
     return;
   }
@@ -227,7 +223,7 @@ function renderReview(doc: TkDocument, state: AppState): void {
   renderPaneRows(doc, reviewContent, panes.rightX, panes.rightWidth, answerViewport, state.activePane === "answers");
 }
 
-function renderHistory(doc: TkDocument, state: AppState): void {
+function renderHistory(doc: Frame, state: AppState): void {
   const attempts = historyRows(state);
   const { width, height } = terminalSize();
   let y = 3;
@@ -249,7 +245,7 @@ function renderHistory(doc: TkDocument, state: AppState): void {
   }
 }
 
-function renderSummary(doc: TkDocument, state: AppState): void {
+function renderSummary(doc: Frame, state: AppState): void {
   const { width } = terminalSize();
   let y = 3;
   text(doc, 0, y++, "stats summary", { color: "cyan", bold: true });
@@ -260,7 +256,7 @@ function renderSummary(doc: TkDocument, state: AppState): void {
   }
 }
 
-function renderDetail(doc: TkDocument, state: AppState): void {
+function renderDetail(doc: Frame, state: AppState): void {
   const panes = paneLayout();
   if (!state.detailQuestion) {
     text(doc, 0, 3, "Could not fetch details for this question.");
@@ -286,12 +282,12 @@ function renderDetail(doc: TkDocument, state: AppState): void {
   renderPaneRows(doc, detailContent, panes.rightX, panes.rightWidth, answerViewport, state.activePane === "answers");
 }
 
-function renderError(doc: TkDocument, state: AppState): void {
+function renderError(doc: Frame, state: AppState): void {
   text(doc, 0, 3, "Something went wrong.", { bold: true, color: "red" });
   printWrappedAt(doc, state.error ?? "Unknown error.", 0, 5, terminalSize().width - 1, terminalSize().height - 4);
 }
 
-function renderUnsupportedQuestion(doc: TkDocument, state: AppState, panes: PaneLayout): void {
+function renderUnsupportedQuestion(doc: Frame, state: AppState, panes: PaneLayout): void {
   if (!state.question) {
     return;
   }
@@ -351,7 +347,7 @@ function renderUnsupportedQuestion(doc: TkDocument, state: AppState, panes: Pane
 }
 
 function renderPaneHeaders(
-  doc: TkDocument,
+  doc: Frame,
   panes: PaneLayout,
   state: AppState,
   questionViewport: PaneViewport,
@@ -362,7 +358,7 @@ function renderPaneHeaders(
   renderPaneHeader(doc, panes.rightX, panes.rightWidth, rightLabel, state.activePane === "answers", answerViewport);
 }
 
-function renderPaneHeader(doc: TkDocument, x: number, width: number, label: string, active: boolean, viewport: PaneViewport): void {
+function renderPaneHeader(doc: Frame, x: number, width: number, label: string, active: boolean, viewport: PaneViewport): void {
   const attr = active ? { color: "cyan", underline: true } : { color: "gray" };
   text(doc, x, PANE_HEADER_Y, label, attr, width);
 
@@ -376,7 +372,7 @@ function renderPaneHeader(doc: TkDocument, x: number, width: number, label: stri
 }
 
 function renderQuestionRows(
-  doc: TkDocument,
+  doc: Frame,
   rows: ReturnType<typeof questionRows>,
   x: number,
   width: number,
@@ -390,7 +386,7 @@ function renderQuestionRows(
   renderScrollGutter(doc, x, width, viewport, active);
 }
 
-function renderPaneRows(doc: TkDocument, rows: PaneTextRow[], x: number, width: number, viewport: PaneViewport, active: boolean): void {
+function renderPaneRows(doc: Frame, rows: PaneTextRow[], x: number, width: number, viewport: PaneViewport, active: boolean): void {
   for (const [offset, row] of rows.slice(viewport.scroll, viewport.scroll + viewport.height).entries()) {
     text(doc, x, PANE_BODY_Y + offset, row.text, paneRowAttr(row), width);
   }
@@ -398,7 +394,7 @@ function renderPaneRows(doc: TkDocument, rows: PaneTextRow[], x: number, width: 
   renderScrollGutter(doc, x, width, viewport, active);
 }
 
-function renderScrollGutter(doc: TkDocument, x: number, width: number, viewport: PaneViewport, active: boolean): void {
+function renderScrollGutter(doc: Frame, x: number, width: number, viewport: PaneViewport, active: boolean): void {
   const scrollX = Math.min(terminalSize().width - 1, x + width);
   const attr = active ? { color: "cyan" } : { color: "gray" };
   if (viewport.scroll > 0) {
@@ -436,7 +432,7 @@ function paneRowAttr(row: PaneTextRow): TextAttr {
   return attr;
 }
 
-function renderStyledLine(doc: TkDocument, x: number, y: number, width: number, segments: TextSegment[], forceBold = false): void {
+function renderStyledLine(doc: Frame, x: number, y: number, width: number, segments: TextSegment[], forceBold = false): void {
   let col = 0;
   for (const segment of segments) {
     if (col >= width) {
@@ -458,7 +454,7 @@ function renderStyledLine(doc: TkDocument, x: number, y: number, width: number, 
 }
 
 function printWrappedAt(
-  doc: TkDocument,
+  doc: Frame,
   value: string | undefined,
   x: number,
   y: number,
@@ -477,7 +473,7 @@ function printWrappedAt(
   return y;
 }
 
-function renderHistoryRow(doc: TkDocument, attempt: Attempt, selected: boolean, y: number, width: number): void {
+function renderHistoryRow(doc: Frame, attempt: Attempt, selected: boolean, y: number, width: number): void {
   const strong = selected ? { bold: true } : {};
   text(doc, 0, y, selected ? ">" : " ", selected ? { color: "yellow", bold: true } : { color: "gray" }, 1);
   text(doc, 2, y, attempt.question_id, { color: selected ? "yellow" : "cyan", ...strong }, 10);
@@ -485,7 +481,7 @@ function renderHistoryRow(doc: TkDocument, attempt: Attempt, selected: boolean, 
   text(doc, 24, y, attempt.updated_at, { color: selected ? "yellow" : "gray", ...strong }, width - 24);
 }
 
-function renderSummaryRow(doc: TkDocument, row: SummaryRow, y: number, width: number): void {
+function renderSummaryRow(doc: Frame, row: SummaryRow, y: number, width: number): void {
   const value = summaryValue(row);
   const attr = summaryAttr(row);
 
@@ -499,7 +495,7 @@ function renderSummaryRow(doc: TkDocument, row: SummaryRow, y: number, width: nu
 }
 
 function renderQuestionMetadata(
-  doc: TkDocument,
+  doc: Frame,
   meta: QuestionMeta,
   attempt: Attempt | undefined,
   x: number,
@@ -597,34 +593,12 @@ function readRatio(value: string): number {
   return Math.min(1, Math.max(0, ratio));
 }
 
-function text(doc: TkDocument, x: number, y: number, value: string, attr: TextAttr = {}, width = terminalSize().width - x): void {
-  if (y < 0 || y >= terminalSize().height || width <= 0) {
+function text(doc: Frame, x: number, y: number, value: string, attr: TextAttr = {}, width = doc.width - x): void {
+  if (y < 0 || y >= doc.height || width <= 0) {
     return;
   }
 
-  const content = truncate(value, width);
-  if (!content) {
-    return;
-  }
-
-  new tk.Text({
-    parent: doc,
-    x,
-    y,
-    content,
-    attr,
-    noDraw: true,
-  });
-}
-
-function truncate(value: string, width: number): string {
-  if (value.length <= width) {
-    return value;
-  }
-  if (width <= 1) {
-    return value.slice(0, width);
-  }
-  return `${value.slice(0, width - 1)}…`;
+  doc.writeText(x, y, value, attr, width);
 }
 
 function practiceControls(state: AppState): string {

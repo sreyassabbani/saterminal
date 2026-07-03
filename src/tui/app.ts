@@ -1,8 +1,8 @@
 import { defaultFocus } from "../focus.ts";
 import { ensureStateFiles, loadAttempts, loadFocus, stateDirExists } from "../state.ts";
 import { handleKey } from "./input.ts";
-import { createDocument, render } from "./render.ts";
-import { term } from "./terminal.ts";
+import { createFrameRenderer, render } from "./render.ts";
+import { term } from "./kit.ts";
 import type { AppState, KeyData } from "./types.ts";
 
 async function loadPersistedState(state: AppState): Promise<void> {
@@ -36,16 +36,17 @@ export async function runTui(): Promise<void> {
 
   term.fullscreen(true);
   term.hideCursor();
-  const doc = createDocument();
+  term.grabInput(true);
+  const renderer = createFrameRenderer();
+  renderer.clear();
   const tick = setInterval(() => {
     if (state.view === "practice" && !state.timerPaused) {
-      render(doc, state);
+      render(renderer, state);
     }
   }, 1000);
 
   const cleanup = () => {
     clearInterval(tick);
-    doc.destroy();
     term.grabInput(false);
     term.hideCursor(false);
     term.fullscreen(false);
@@ -53,7 +54,10 @@ export async function runTui(): Promise<void> {
   };
 
   process.on("SIGINT", cleanup);
-  term.on("resize", () => render(doc, state));
+  term.on("resize", () => {
+    renderer.clear();
+    render(renderer, state);
+  });
 
   try {
     if (await stateDirExists()) {
@@ -66,7 +70,7 @@ export async function runTui(): Promise<void> {
     state.error = error instanceof Error ? error.message : String(error);
   }
 
-  render(doc, state);
+  render(renderer, state);
 
   term.on("key", async (name: string, _matches?: string[], data?: KeyData) => {
     try {
@@ -83,16 +87,16 @@ export async function runTui(): Promise<void> {
           return;
         }
 
-        render(doc, state);
+        render(renderer, state);
         return;
       }
 
       await handleKey(state, name, data);
-      render(doc, state);
+      render(renderer, state);
     } catch (error) {
       state.view = "error";
       state.error = error instanceof Error ? error.message : String(error);
-      render(doc, state);
+      render(renderer, state);
     }
   });
 }

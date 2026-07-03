@@ -19,6 +19,9 @@ declare module "terminal-kit" {
     underline: Terminal;
     inverse: Terminal;
     defaultColor: Terminal;
+    italic: Terminal;
+    styleReset(): Terminal;
+    eraseLineAfter(): Terminal;
     fullscreen(enabled: boolean): void;
     hideCursor(enabled?: boolean): void;
     grabInput(enabled?: boolean): void;
