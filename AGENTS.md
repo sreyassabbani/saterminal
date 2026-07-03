@@ -1,3 +1,7 @@
+# Environment
+
+I use Nix & `direnv`. Glance `flake.nix` initially at once.
+
 # Git
 
 - Commit regularly.
@@ -21,3 +25,5 @@ chore(repo): remove unused `documents/` directory
 - the directory only contained standalone agent/document notes
 - removing it keeps the repo focused on active configuration
 ```
+
+- **_BUT_** it is *__NEVER__* necessary to always do this style of three bullet points; you can do more for larger commits and less/none for quick changes. Take creative freedom. It's all yours.
