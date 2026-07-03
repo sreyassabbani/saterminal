@@ -2,6 +2,7 @@ import { buildSummaryRows, displayStateDir, stateDir } from "../state.ts";
 import { focusSummary } from "../focus.ts";
 import { htmlToText, wrapText } from "../text.ts";
 import type { TextSegment } from "../text.ts";
+import { progressBarText } from "../progress.ts";
 import { Frame, FrameRenderer, TerminalFrameOutput, truncate, type TextAttr } from "./frame.ts";
 import { focusGrid, normalizeFocusGridPosition, type FocusGridColumn, type FocusGridRow } from "./focus-grid.ts";
 import { historyRows } from "./history.ts";
@@ -580,9 +581,7 @@ function summaryAttr(row: SummaryRow): TextAttr {
 
 function accuracyBar(value: string, width: number): string {
   const barWidth = Math.max(8, width - 2);
-  const ratio = readRatio(value);
-  const filled = Math.round(ratio * barWidth);
-  return `[${"#".repeat(filled)}${"-".repeat(barWidth - filled)}]`;
+  return `[${progressBarText(readRatio(value), barWidth)}]`;
 }
 
 function readRatio(value: string): number {

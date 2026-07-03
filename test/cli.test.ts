@@ -72,6 +72,8 @@ describe("cli", () => {
     expect(stripAnsi(pretty)).toContain("stats\n2 answered  50% accuracy  0:30 avg");
     expect(stripAnsi(pretty)).toContain("correct     1");
     expect(stripAnsi(pretty)).toContain("incorrect   1");
+    expect(stripAnsi(pretty)).toContain("████████████░░░░░░░░░░░░");
+    expect(stripAnsi(pretty)).not.toContain("#");
     expect(formatStats(rows, "text")).toContain("avg seconds  30.0s");
   });
 

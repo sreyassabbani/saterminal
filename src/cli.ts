@@ -1,4 +1,5 @@
 import { difficultyLabels, domainLabels, focusSummary, skillLabels } from "./focus.ts";
+import { progressBar } from "./progress.ts";
 import { buildSummaryRows, loadAttempts, loadFocus } from "./state.ts";
 import type { Attempt, Focus, SummaryRow } from "./types.ts";
 
@@ -266,9 +267,10 @@ function metricBar(label: string, value: number, total: number, color: string): 
 
 function bar(value: number, total: number, color: string): string {
   const width = 24;
-  const filled = total === 0 ? 0 : Math.round((value / total) * width);
-  const filledBar = filled > 0 ? paint("#".repeat(filled), color) : "";
-  return `${filledBar}${muted("-".repeat(width - filled))}`;
+  const ratio = total === 0 ? 0 : value / total;
+  const parts = progressBar(ratio, width);
+  const filled = parts.filled ? paint(parts.filled, color) : "";
+  return `${filled}${muted(parts.empty)}`;
 }
 
 function prettyTable(headers: string[], rows: string[][]): string {
