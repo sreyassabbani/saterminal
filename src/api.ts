@@ -1,7 +1,6 @@
 import { defaultFocus, domainsForSkills } from "./focus.ts";
 import type { Focus, PracticeQuestion, QuestionDetail, QuestionMeta } from "./types.ts";
-
-const baseUrl = "https://mysatprep.fun/api";
+import { apiBaseUrl } from "./urls.ts";
 
 type ApiEnvelope<T> = {
   success: boolean;
@@ -17,7 +16,7 @@ export async function fetchQuestionBank(excludeIds: Iterable<string> = [], focus
     params.set("excludeIds", excluded.join(","));
   }
 
-  const response = await fetchJson<ApiEnvelope<QuestionMeta[]>>(`${baseUrl}/get-questions?${params}`);
+  const response = await fetchJson<ApiEnvelope<QuestionMeta[]>>(`${apiBaseUrl}/get-questions?${params}`);
   if (!response.success || !Array.isArray(response.data)) {
     throw new Error(response.error || response.message || "Question bank fetch failed.");
   }
@@ -26,7 +25,7 @@ export async function fetchQuestionBank(excludeIds: Iterable<string> = [], focus
 }
 
 export async function fetchQuestion(id: string): Promise<QuestionDetail> {
-  const response = await fetchJson<ApiEnvelope<QuestionDetail>>(`${baseUrl}/question/${id}`);
+  const response = await fetchJson<ApiEnvelope<QuestionDetail>>(`${apiBaseUrl}/question/${id}`);
   if (!response.success || !response.data) {
     throw new Error(response.error || response.message || `Question ${id} fetch failed.`);
   }

@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { hasHtmlTable, parseHtmlSegments, wrapSegments } from "../text.ts";
 import type { PracticeQuestion, QuestionDetail } from "../types.ts";
+import { apiBaseUrl, siteUrl } from "../urls.ts";
 import type { DisplayRow } from "./types.ts";
 
 export function answerKeys(question?: PracticeQuestion): string[] {
@@ -30,11 +31,11 @@ export function questionRows(detail: QuestionDetail, width: number): DisplayRow[
 }
 
 export function practiceQuestionUrl(question: PracticeQuestion): string {
-  return `https://mysatprep.fun/question/${encodeURIComponent(question.meta.questionId)}`;
+  return `${siteUrl}/question/${encodeURIComponent(question.meta.questionId)}`;
 }
 
 export function practiceQuestionApiUrl(question: PracticeQuestion): string {
-  return `https://mysatprep.fun/api/question/${encodeURIComponent(question.meta.external_id)}`;
+  return `${apiBaseUrl}/question/${encodeURIComponent(question.meta.external_id)}`;
 }
 
 export function openExternalQuestion(question: PracticeQuestion): void {

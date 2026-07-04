@@ -17,7 +17,7 @@ describe("api", () => {
 
     try {
       await fetchQuestionBank(["a", "b"]);
-      expect(requested).toStartWith("https://mysatprep.fun/api/get-questions?");
+      expect(requested).toStartWith("https://practicesat.vercel.app/api/get-questions?");
       expect(requested).toContain("assessment=SAT");
       expect(requested).toContain("excludeIds=a%2Cb");
       expect(requested).toContain("difficulties=M%2CH");
@@ -45,7 +45,7 @@ describe("api", () => {
         domains: ["SEC"],
         skills: ["BOU", "FSS"],
       });
-      expect(requested).toStartWith("https://mysatprep.fun/api/get-questions?");
+      expect(requested).toStartWith("https://practicesat.vercel.app/api/get-questions?");
       expect(requested).toContain("difficulties=H");
       expect(requested).toContain("domains=SEC");
       expect(requested).toContain("skills=BOU%2CFSS");
@@ -73,7 +73,7 @@ describe("api", () => {
         domains: ["INI"],
         skills: ["WIC"],
       });
-      expect(requested).toStartWith("https://mysatprep.fun/api/get-questions?");
+      expect(requested).toStartWith("https://practicesat.vercel.app/api/get-questions?");
       expect(requested).toContain("domains=CAS");
       expect(requested).toContain("skills=WIC");
     } finally {
@@ -85,7 +85,7 @@ describe("api", () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = ((_input: RequestInfo | URL) =>
       Promise.resolve(
-        new Response("Please Migrate to mysatprep.fun", {
+        new Response("Please Migrate to practicesat.vercel.app", {
           status: 200,
           headers: { "content-type": "text/plain;charset=UTF-8" },
         }),
@@ -93,9 +93,9 @@ describe("api", () => {
 
     try {
       await expect(fetchQuestionBank()).rejects.toThrow(
-        "Expected JSON from https://mysatprep.fun/api/get-questions?",
+        "Expected JSON from https://practicesat.vercel.app/api/get-questions?",
       );
-      await expect(fetchQuestionBank()).rejects.toThrow("Please Migrate to mysatprep.fun");
+      await expect(fetchQuestionBank()).rejects.toThrow("Please Migrate to practicesat.vercel.app");
     } finally {
       globalThis.fetch = originalFetch;
     }
