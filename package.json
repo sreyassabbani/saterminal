@@ -15,8 +15,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "filesize": "^11.0.19",
     "he": "^1.2.0",
     "node-html-parser": "^8.0.4",
+    "p-limit": "^7.3.0",
     "terminal-kit": "^3.1.2",
     "word-wrap": "^1.2.5"
   },

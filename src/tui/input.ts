@@ -1,4 +1,4 @@
-import { fetchPracticeQuestion, findQuestionByShortId } from "../api.ts";
+import { getPracticeQuestion, getQuestionByShortId } from "../question-bank.ts";
 import { appendAttemptEvent, recordAttempt, saveAttempts, saveFocus, saveSummary } from "../state.ts";
 import { focusGrid, moveFocusGridPosition, normalizeFocusGridPosition, toggleFocusGridRow } from "./focus-grid.ts";
 import {
@@ -147,7 +147,7 @@ export async function handleKey(state: AppState, name: string, data?: KeyData): 
     } else if (name === "ENTER" && attempts[state.historyIndex]) {
       state.view = "loading";
       resetPaneScroll(state);
-      state.detailQuestion = await findQuestionByShortId(attempts[state.historyIndex].question_id);
+      state.detailQuestion = await getQuestionByShortId(attempts[state.historyIndex].question_id);
       state.view = "detail";
     }
     return;
@@ -244,7 +244,7 @@ async function takeNextQuestion(state: AppState) {
     }
   }
 
-  return fetchPracticeQuestion(questionExclusions(state), state.focus);
+  return getPracticeQuestion(questionExclusions(state), state.focus);
 }
 
 async function takeReviewQuestion(state: AppState): Promise<PracticeQuestion | undefined> {
@@ -254,7 +254,7 @@ async function takeReviewQuestion(state: AppState): Promise<PracticeQuestion | u
       continue;
     }
 
-    const question = await findQuestionByShortId(id);
+    const question = await getQuestionByShortId(id);
     if (question) {
       return question;
     }
@@ -268,7 +268,7 @@ function cacheNextQuestion(state: AppState): void {
     return;
   }
 
-  state.nextQuestion = fetchPracticeQuestion(questionExclusions(state), state.focus).catch(() => undefined);
+  state.nextQuestion = getPracticeQuestion(questionExclusions(state), state.focus).catch(() => undefined);
 }
 
 function questionExclusions(state: AppState): string[] {

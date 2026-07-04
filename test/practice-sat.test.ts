@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { fetchQuestionBank } from "../src/api.ts";
+import { fetchPracticeSatMetas } from "../src/practice-sat.ts";
 
-describe("api", () => {
+describe("practice sat api", () => {
   test("passes excluded short question ids to the question bank endpoint", async () => {
     const originalFetch = globalThis.fetch;
     let requested = "";
@@ -16,7 +16,7 @@ describe("api", () => {
     }) as typeof fetch;
 
     try {
-      await fetchQuestionBank(["a", "b"]);
+      await fetchPracticeSatMetas(["a", "b"]);
       expect(requested).toStartWith("https://practicesat.vercel.app/api/get-questions?");
       expect(requested).toContain("assessment=SAT");
       expect(requested).toContain("excludeIds=a%2Cb");
@@ -40,7 +40,7 @@ describe("api", () => {
     }) as typeof fetch;
 
     try {
-      await fetchQuestionBank([], {
+      await fetchPracticeSatMetas([], {
         difficulties: ["H"],
         domains: ["SEC"],
         skills: ["BOU", "FSS"],
@@ -68,7 +68,7 @@ describe("api", () => {
     }) as typeof fetch;
 
     try {
-      await fetchQuestionBank([], {
+      await fetchPracticeSatMetas([], {
         difficulties: ["H"],
         domains: ["INI"],
         skills: ["WIC"],
@@ -92,10 +92,10 @@ describe("api", () => {
       )) as typeof fetch;
 
     try {
-      await expect(fetchQuestionBank()).rejects.toThrow(
+      await expect(fetchPracticeSatMetas()).rejects.toThrow(
         "Expected JSON from https://practicesat.vercel.app/api/get-questions?",
       );
-      await expect(fetchQuestionBank()).rejects.toThrow("Please Migrate to practicesat.vercel.app");
+      await expect(fetchPracticeSatMetas()).rejects.toThrow("Please Migrate to practicesat.vercel.app");
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -113,7 +113,7 @@ describe("api", () => {
       )) as typeof fetch;
 
     try {
-      await expect(fetchQuestionBank()).rejects.toThrow("400 Bad Request: Invalid skill codes provided: RHG");
+      await expect(fetchPracticeSatMetas()).rejects.toThrow("400 Bad Request: Invalid skill codes provided: RHG");
     } finally {
       globalThis.fetch = originalFetch;
     }

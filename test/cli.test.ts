@@ -16,6 +16,7 @@ describe("cli", () => {
     expect(parseArgs([])).toEqual({ kind: "tui" });
     expect(parseArgs(["history"])).toEqual({ kind: "command", command: "history", format: "text" });
     expect(parseArgs(["history", "-p"])).toEqual({ kind: "command", command: "history", format: "pretty" });
+    expect(parseArgs(["sync", "--json"])).toEqual({ kind: "sync", format: "json" });
     expect(parseArgs(["--json", "stats"])).toEqual({ kind: "command", command: "stats", format: "json" });
     expect(parseArgs(["weak", "--pretty", "--no-color"])).toEqual({ kind: "command", command: "weak", format: "pretty", color: false });
     expect(parseArgs(["review"])).toEqual({ kind: "review" });
@@ -55,6 +56,10 @@ describe("cli", () => {
     expect(parseArgs(["stats", "--wrong"])).toEqual({
       kind: "error",
       message: "History filters only work with `sat history`.",
+    });
+    expect(parseArgs(["sync", "--wrong"])).toEqual({
+      kind: "error",
+      message: "`sat sync` does not support history filters.",
     });
 
     const attempts = new Map();

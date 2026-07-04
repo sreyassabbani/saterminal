@@ -1,4 +1,5 @@
 import { defaultFocus } from "../focus.ts";
+import { questionBankStatus } from "../question-bank.ts";
 import { ensureStateFiles, loadAttempts, loadFocus, stateDirExists } from "../state.ts";
 import { handleKey, loadNextQuestion } from "./input.ts";
 import { createFrameRenderer, render } from "./render.ts";
@@ -18,6 +19,10 @@ async function loadPersistedState(state: AppState, options: TuiOptions = {}): Pr
   state.focusColumn = 0;
   state.focusRow = 1;
   state.notice = undefined;
+
+  if (!(await questionBankStatus()).exists) {
+    state.notice = "Question bank not synced. Run `sat sync` before practice.";
+  }
 
   if (options.mode === "review") {
     state.reviewMode = true;

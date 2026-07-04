@@ -70,7 +70,7 @@ function renderSetup(doc: Frame): void {
   const location = displayStateDir(stateDir);
 
   text(doc, 0, 3, "storage location", { bold: true });
-  text(doc, 0, 5, "Sat saves progress, focus settings, and summary stats locally.", { color: "gray" }, width);
+  text(doc, 0, 5, "Sat saves progress, focus settings, summary stats, and the synced question cache locally.", { color: "gray" }, width);
   text(doc, 0, 7, "Allow creating this directory?", { bold: true }, width);
   text(doc, 0, 9, location, { color: "cyan" }, width);
 }
@@ -124,6 +124,9 @@ function renderFocus(doc: Frame, state: AppState): void {
   text(doc, 0, 3, "study focus", { bold: true });
   text(doc, Math.max(0, width - summary.length - 1), 3, summary, { color: "cyan" });
   text(doc, 0, 4, "Space toggles the selected row. Enter starts practice.", { color: "gray" }, width);
+  if (state.notice) {
+    text(doc, 0, 5, state.notice, { color: "yellow" }, width);
+  }
 
   renderDifficultyColumn(doc, columns[0], position.column === 0 ? position.row : -1);
   renderDomainColumns(doc, columns.slice(1), position.column - 1, position.row);

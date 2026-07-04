@@ -1,5 +1,5 @@
 import { defaultFocus, domainsForSkills } from "./focus.ts";
-import type { Focus, PracticeQuestion, QuestionDetail, QuestionMeta } from "./types.ts";
+import type { Focus, QuestionDetail, QuestionMeta } from "./types.ts";
 import { apiBaseUrl } from "./urls.ts";
 
 type ApiEnvelope<T> = {
@@ -9,7 +9,7 @@ type ApiEnvelope<T> = {
   message?: string;
 };
 
-export async function fetchQuestionBank(excludeIds: Iterable<string> = [], focus: Focus = defaultFocus): Promise<QuestionMeta[]> {
+export async function fetchPracticeSatMetas(excludeIds: Iterable<string> = [], focus: Focus = defaultFocus): Promise<QuestionMeta[]> {
   const params = focusParams(focus);
   const excluded = [...excludeIds].filter(Boolean);
   if (excluded.length > 0) {
@@ -24,34 +24,13 @@ export async function fetchQuestionBank(excludeIds: Iterable<string> = [], focus
   return response.data.filter((item) => item.questionId && item.external_id);
 }
 
-export async function fetchQuestion(id: string): Promise<QuestionDetail> {
+export async function fetchPracticeSatDetail(id: string): Promise<QuestionDetail> {
   const response = await fetchJson<ApiEnvelope<QuestionDetail>>(`${apiBaseUrl}/question/${id}`);
   if (!response.success || !response.data) {
     throw new Error(response.error || response.message || `Question ${id} fetch failed.`);
   }
 
   return response.data;
-}
-
-export async function fetchPracticeQuestion(attemptedIds: Iterable<string>, focus: Focus = defaultFocus): Promise<PracticeQuestion> {
-  const bank = await fetchQuestionBank(attemptedIds, focus);
-  if (bank.length === 0) {
-    throw new Error("No unanswered questions matched the current filters.");
-  }
-
-  const meta = bank[Math.floor(Math.random() * bank.length)];
-  const detail = await fetchQuestion(meta.external_id);
-  return { meta, detail };
-}
-
-export async function findQuestionByShortId(questionId: string): Promise<PracticeQuestion | undefined> {
-  const bank = await fetchQuestionBank();
-  const meta = bank.find((item) => item.questionId === questionId);
-  if (!meta) {
-    return undefined;
-  }
-
-  return { meta, detail: await fetchQuestion(meta.external_id) };
 }
 
 function focusParams(focus: Focus): URLSearchParams {

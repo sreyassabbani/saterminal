@@ -1,7 +1,9 @@
 import { readFile } from "node:fs/promises";
+import { filesize } from "filesize";
 import { difficultyLabels, domainLabels, focusSummary, skillLabels } from "./focus.ts";
 import { progressBarText } from "./progress.ts";
-import { buildSummaryRows, loadAttemptEvents, loadAttempts, loadFocus } from "./state.ts";
+import { syncQuestionBank, type SyncProgress, type SyncResult } from "./question-bank.ts";
+import { buildSummaryRows, displayStateDir, loadAttemptEvents, loadAttempts, loadFocus } from "./state.ts";
 import type { Attempt, AttemptEvent, Focus, SummaryRow } from "./types.ts";
 
 export type CliCommand = "history" | "stats" | "focus" | "weak";
@@ -17,6 +19,7 @@ export type HistoryFilters = {
 export type ParsedCli =
   | { kind: "tui" }
   | { kind: "review" }
+  | { kind: "sync"; format: OutputFormat; color?: boolean }
   | { kind: "version" }
   | { kind: "help" }
   | { kind: "error"; message: string }
@@ -181,7 +184,7 @@ export function parseArgs(args: string[]): ParsedCli {
   }
 
   if (!command) {
-    return { kind: "error", message: "Missing command. Use `sat history`, `sat stats`, `sat focus`, `sat weak`, or `sat review`." };
+    return { kind: "error", message: "Missing command. Use `sat history`, `sat stats`, `sat focus`, `sat weak`, `sat review`, or `sat sync`." };
   }
 
   if (extra.length > 0) {
@@ -197,6 +200,18 @@ export function parseArgs(args: string[]): ParsedCli {
       return { kind: "error", message: "`sat review` opens the TUI and does not support report flags." };
     }
     return { kind: "review" };
+  }
+
+  if (command === "sync") {
+    if (hasHistoryFilters(filters)) {
+      return { kind: "error", message: "`sat sync` does not support history filters." };
+    }
+
+    return {
+      kind: "sync",
+      format: json ? "json" : pretty ? "pretty" : "text",
+      ...(noColor ? { color: false } : {}),
+    };
   }
 
   if (!reportCommands.has(command as CliCommand)) {
@@ -236,6 +251,15 @@ export async function runCliCommand(
   if (parsed.kind === "error") {
     stderr.write(`${parsed.message}\n\n${helpText()}\n`);
     return 1;
+  }
+
+  if (parsed.kind === "sync") {
+    const color = parsed.format === "pretty" ? resolveColor(parsed.color, stdout) : false;
+    const progress = syncProgressWriter(stderr);
+    const result = await syncQuestionBank({ onProgress: progress.update });
+    progress.finish();
+    stdout.write(`${formatSyncResult(result, parsed.format, { color })}\n`);
+    return 0;
   }
 
   const color = parsed.format === "pretty" ? resolveColor(parsed.color, stdout) : false;
@@ -382,6 +406,35 @@ export function formatWeak(attempts: Attempt[], format: OutputFormat, options: F
   );
 }
 
+export function formatSyncResult(result: SyncResult, format: OutputFormat, options: FormatOptions = {}): string {
+  const style = styleFor(options);
+  const rows = [
+    ["questions", String(result.questions)],
+    ["size", filesize(result.size_bytes)],
+    ["path", displayStateDir(result.path)],
+    ["synced", result.synced_at],
+    ["source", result.source],
+  ];
+
+  if (format === "json") {
+    return JSON.stringify(result);
+  }
+
+  if (format === "pretty") {
+    return [
+      heading("sync", style),
+      [
+        `${paint(String(result.questions), style, ansi.green, ansi.bold)} questions`,
+        `${paint(filesize(result.size_bytes), style, ansi.cyan, ansi.bold)} cache`,
+      ].join("  "),
+      "",
+      formatTable(["field", "value"], rows, false),
+    ].join("\n");
+  }
+
+  return formatTable(["field", "value"], rows, false);
+}
+
 export function helpText(): string {
   return [
     "usage: sat [command] [options]",
@@ -392,6 +445,7 @@ export function helpText(): string {
     "  weak     Show weak skills from recorded attempts",
     "  focus    Show current practice focus",
     "  review   Practice missed and corrected questions in the TUI",
+    "  sync     Download the full question bank cache",
     "",
     "history filters:",
     "      --wrong       Show currently missed questions",
@@ -788,6 +842,49 @@ function resolveColor(parsedColor: boolean | undefined, stdout: Writable): boole
     return false;
   }
   return stdout.isTTY === true && process.env.NO_COLOR === undefined;
+}
+
+function syncProgressWriter(stderr: Writable): { update(progress: SyncProgress): void; finish(): void } {
+  if (stderr.isTTY !== true) {
+    return { update() {}, finish() {} };
+  }
+
+  let wrote = false;
+  let lastLine = "";
+
+  return {
+    update(progress) {
+      if (progress.phase === "details" && progress.completed < progress.total && progress.completed % 25 !== 0) {
+        return;
+      }
+
+      const line = syncProgressText(progress);
+      if (line === lastLine) {
+        return;
+      }
+
+      lastLine = line;
+      wrote = true;
+      stderr.write(`\r${line.padEnd(72)}`);
+    },
+    finish() {
+      if (wrote) {
+        stderr.write("\n");
+      }
+    },
+  };
+}
+
+function syncProgressText(progress: SyncProgress): string {
+  if (progress.phase === "metadata") {
+    return progress.total === 0 ? "sync metadata" : `sync metadata ${progress.completed} questions`;
+  }
+
+  if (progress.phase === "writing") {
+    return "sync writing cache";
+  }
+
+  return `sync details ${progress.completed}/${progress.total}`;
 }
 
 function styleFor(options: FormatOptions): Style {
