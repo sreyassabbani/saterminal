@@ -1,10 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   findQuestionInBank,
   loadQuestionBank,
+  materializeQuestionBankCache,
   questionBankStatus,
   questionBankVersion,
   saveQuestionBank,
@@ -16,15 +17,16 @@ import {
 import type { PracticeQuestion, QuestionDetail, QuestionMeta } from "../src/types.ts";
 
 describe("question bank", () => {
-  test("saves and loads a gzipped local bank", async () => {
+  test("saves and loads a plain local bank", async () => {
     const dir = await mkdtemp(join(tmpdir(), "saterminal-bank-"));
-    const path = join(dir, "question-bank.json.gz");
+    const path = join(dir, "question-bank.json");
 
     try {
       const bank = questionBank([practiceQuestion("a", "external-a", "M", "WIC")]);
       await saveQuestionBank(bank, path);
 
       expect(await loadQuestionBank(path)).toEqual(bank);
+      expect((await readFile(path, "utf8")).startsWith("{")).toBe(true);
       expect(await questionBankStatus(path)).toMatchObject({
         exists: true,
         path,
@@ -32,6 +34,20 @@ describe("question bank", () => {
         synced_at: "2026-01-01T00:00:00.000Z",
         questions: 1,
       });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("loads the bundled zstd bank format", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "saterminal-bank-"));
+    const path = join(dir, "question-bank.json.zst");
+
+    try {
+      const bank = questionBank([practiceQuestion("a", "external-a", "M", "WIC")]);
+      await Bun.write(path, Bun.zstdCompressSync(Buffer.from(`${JSON.stringify(bank)}\n`, "utf8")));
+
+      expect(await loadQuestionBank(path)).toEqual(bank);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -110,8 +126,26 @@ describe("question bank", () => {
       expect(requested[0]).toContain("difficulties=E%2CM%2CH");
       expect(requested.filter((url) => url.includes("/api/question/")).length).toBe(2);
       expect(progress.map((value) => value.phase)).toContain("writing");
+      expect((await readFile(path, "utf8")).startsWith("{")).toBe(true);
     } finally {
       globalThis.fetch = originalFetch;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("materializes a bundled zstd bank into a plain user cache", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "saterminal-bank-"));
+    const cachePath = join(dir, "cache", "question-bank.json");
+    const bundledPath = join(dir, "question-bank.json.zst");
+
+    try {
+      const bank = questionBank([practiceQuestion("a", "external-a", "M", "WIC")]);
+      await Bun.write(bundledPath, Bun.zstdCompressSync(Buffer.from(`${JSON.stringify(bank)}\n`, "utf8")));
+
+      expect(await materializeQuestionBankCache(cachePath, bundledPath)).toEqual(bank);
+      expect((await readFile(cachePath, "utf8")).startsWith("{")).toBe(true);
+      expect(await materializeQuestionBankCache(cachePath, bundledPath)).toEqual(bank);
+    } finally {
       await rm(dir, { recursive: true, force: true });
     }
   });

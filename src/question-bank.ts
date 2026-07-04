@@ -1,5 +1,6 @@
 import { mkdir, rename, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import pLimit from "p-limit";
 import { difficultyOptions, domainsForSkills, skillOptions } from "./focus.ts";
 import { fetchPracticeSatDetail, fetchPracticeSatMetas } from "./practice-sat.ts";
@@ -8,7 +9,8 @@ import type { Difficulty, Focus, PracticeQuestion, QuestionMeta, Skill } from ".
 import { apiBaseUrl } from "./urls.ts";
 
 export const questionBankVersion = 1;
-export const questionBankPath = join(stateDir, "cache", "question-bank.json.gz");
+export const questionBankPath = join(stateDir, "cache", "question-bank.json");
+export const bundledQuestionBankPath = fileURLToPath(new URL("../data/question-bank.json.zst", import.meta.url));
 
 export type QuestionBank = {
   version: typeof questionBankVersion;
@@ -131,19 +133,38 @@ export function findQuestionInBank(bank: QuestionBank, questionId: string): Prac
 
 export async function loadQuestionBank(path = questionBankPath): Promise<QuestionBank | undefined> {
   if (path === questionBankPath) {
-    memoryBank ??= readQuestionBank(path);
+    memoryBank ??= materializeQuestionBankCache();
     return memoryBank;
   }
 
   return readQuestionBank(path);
 }
 
+export async function materializeQuestionBankCache(
+  cachePath = questionBankPath,
+  bundledPath = bundledQuestionBankPath,
+): Promise<QuestionBank | undefined> {
+  const cached = await readQuestionBank(cachePath);
+  if (cached) {
+    return cached;
+  }
+
+  const bundled = await readQuestionBank(bundledPath);
+  if (!bundled) {
+    return undefined;
+  }
+
+  await saveQuestionBank(bundled, cachePath);
+  return bundled;
+}
+
 export async function questionBankStatus(path = questionBankPath): Promise<QuestionBankStatus> {
   try {
-    const [bank, file] = await Promise.all([loadQuestionBank(path), stat(path)]);
+    const bank = await loadQuestionBank(path);
     if (!bank) {
       return { path, exists: false };
     }
+    const file = await stat(path);
 
     return {
       path,
@@ -164,10 +185,8 @@ export async function questionBankStatus(path = questionBankPath): Promise<Quest
 
 export async function saveQuestionBank(bank: QuestionBank, path = questionBankPath): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
-  const payload = Buffer.from(`${JSON.stringify(bank)}\n`, "utf8");
-  const compressed = Bun.gzipSync(payload);
   const tempPath = `${path}.${process.pid}.tmp`;
-  await Bun.write(tempPath, compressed);
+  await Bun.write(tempPath, `${JSON.stringify(bank)}\n`);
   await rename(tempPath, path);
 }
 
@@ -194,9 +213,13 @@ function allQuestionFocus(): Focus {
 
 async function readQuestionBank(path: string): Promise<QuestionBank | undefined> {
   try {
-    const compressed = await Bun.file(path).arrayBuffer();
-    const payload = Bun.gunzipSync(new Uint8Array(compressed));
-    return parseQuestionBank(JSON.parse(new TextDecoder().decode(payload)));
+    if (path.endsWith(".zst")) {
+      const compressed = await Bun.file(path).arrayBuffer();
+      const payload = Bun.zstdDecompressSync(new Uint8Array(compressed));
+      return parseQuestionBank(JSON.parse(new TextDecoder().decode(payload)));
+    }
+
+    return parseQuestionBank(await Bun.file(path).json());
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
       return undefined;

@@ -6,6 +6,7 @@
     "sat": "src/main.ts"
   },
   "files": [
+    "data",
     "src"
   ],
   "scripts": {
