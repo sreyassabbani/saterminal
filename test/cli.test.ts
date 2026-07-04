@@ -146,9 +146,18 @@ describe("cli", () => {
       totalEvents: 2,
     });
 
-    const pretty = stripAnsi(formatStats(rows, "pretty", { events, now: new Date("2026-01-10T12:00:00") }));
+    const rawPretty = formatStats(rows, "pretty", { events, now: new Date("2026-01-10T12:00:00") });
+    const pretty = stripAnsi(rawPretty);
     expect(pretty).toContain("2 day streak");
     expect(pretty).toContain("activity\nlast 12 weeks");
+    expect(pretty).toContain("Mon");
+    expect(pretty).toContain("Wed");
+    expect(pretty).toContain("Fri");
+    expect(pretty).toContain("Oct");
+    expect(pretty).toContain("Jan");
+    expect(rawPretty).toContain("\x1b[38;5;238m■\x1b[0m");
+    expect(rawPretty).toContain("\x1b[38;5;22m■\x1b[0m");
+    expect(rawPretty).not.toContain("·");
   });
 
   test("formats focus as raw selections or labeled pretty output", () => {

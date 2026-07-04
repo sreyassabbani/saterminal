@@ -81,6 +81,11 @@ const ansi = {
   bgRed: "\x1b[41m",
   bgGreen: "\x1b[42m",
   bgYellow: "\x1b[43m",
+  heatEmpty: "\x1b[38;5;238m",
+  heatLow: "\x1b[38;5;22m",
+  heatMid: "\x1b[38;5;28m",
+  heatHigh: "\x1b[38;5;34m",
+  heatMax: "\x1b[38;5;40m",
 } as const;
 
 export function parseArgs(args: string[]): ParsedCli {
@@ -535,7 +540,7 @@ function formatPrettyStats(stats: ReturnType<typeof statsObject>, activity: Acti
     lines.push(
       "",
       section("activity", style),
-      muted(`last 12 weeks · ${activity.activeDays} active days · ${activity.todayCount} today`, style),
+      muted(`last 12 weeks | ${activity.activeDays} active days | ${activity.todayCount} today`, style),
       ...heatmapLines(activity.days, style),
     );
   }
@@ -635,38 +640,78 @@ function heatmapLines(days: ActivityDay[], style: Style): string[] {
   const start = startOfWeek(first);
   const dayMap = new Map(days.map((day) => [day.date, day.count]));
   const weeks = Math.floor((startOfDay(last).getTime() - start.getTime()) / (7 * 86_400_000)) + 1;
-  const labels = ["   ", "mon", "   ", "wed", "   ", "fri", "   "];
-  const lines: string[] = [];
+  const labels = ["   ", "Mon", "   ", "Wed", "   ", "Fri", "   "];
+  const lines: string[] = [monthLabelLine(start, weeks, first, last)];
 
   for (let weekday = 0; weekday < 7; weekday += 1) {
     const cells: string[] = [];
     for (let week = 0; week < weeks; week += 1) {
       const date = addDays(start, week * 7 + weekday);
       if (date < first || date > last) {
-        cells.push(" ");
+        cells.push(blankHeatCell());
         continue;
       }
       const count = dayMap.get(dateKey(date)) ?? 0;
-      cells.push(heatGlyph(count, style));
+      cells.push(heatCell(count, style));
     }
-    lines.push(`${labels[weekday]} ${cells.join("")}`);
+    lines.push(`${labels[weekday]} ${cells.join(heatCellGap)}`.trimEnd());
   }
 
   return lines;
 }
 
-function heatGlyph(count: number, style: Style): string {
-  const glyph = count === 0 ? "·" : count <= 2 ? "▁" : count <= 4 ? "▃" : count <= 6 ? "▅" : "█";
+const heatCellGap = " ";
+const heatWeekWidth = 2;
+
+function monthLabelLine(start: Date, weeks: number, first: Date, last: Date): string {
+  const columns = Array.from({ length: Math.max(0, weeks * heatWeekWidth - heatCellGap.length) }, () => " ");
+  let previousMonth = "";
+
+  for (let week = 0; week < weeks; week += 1) {
+    const weekStart = addDays(start, week * 7);
+    const weekEnd = addDays(weekStart, 6);
+    if (weekEnd < first || weekStart > last) {
+      continue;
+    }
+
+    const monthKey = `${weekStart.getFullYear()}-${weekStart.getMonth()}`;
+    const label = monthKey !== previousMonth ? monthName(weekStart).slice(0, 3) : "";
+    const offset = Math.min(week * heatWeekWidth, Math.max(0, columns.length - label.length));
+    for (let index = 0; index < label.length && offset + index < columns.length; index += 1) {
+      columns[offset + index] = label[index] ?? " ";
+    }
+    previousMonth = monthKey;
+  }
+
+  return `    ${columns.join("")}`.trimEnd();
+}
+
+function heatCell(count: number, style: Style): string {
+  if (!style.color) {
+    return count === 0 ? "□" : "■";
+  }
+
+  return paint("■", style, heatColor(count));
+}
+
+function blankHeatCell(): string {
+  return " ";
+}
+
+function heatColor(count: number): string {
   if (count === 0) {
-    return paint(glyph, style, ansi.gray);
+    return ansi.heatEmpty;
   }
   if (count <= 2) {
-    return paint(glyph, style, ansi.cyan);
+    return ansi.heatLow;
   }
   if (count <= 4) {
-    return paint(glyph, style, ansi.green);
+    return ansi.heatMid;
   }
-  return paint(glyph, style, ansi.yellow);
+  if (count <= 6) {
+    return ansi.heatHigh;
+  }
+  return ansi.heatMax;
 }
 
 function streakDays(counts: Map<string, number>, today: Date): number {
@@ -847,4 +892,8 @@ function dateKey(date: Date): string {
 function parseDateKey(value: string): Date {
   const [year = "0", month = "1", day = "1"] = value.split("-");
   return new Date(Number(year), Number(month) - 1, Number(day));
+}
+
+function monthName(date: Date): string {
+  return ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][date.getMonth()] ?? "";
 }
