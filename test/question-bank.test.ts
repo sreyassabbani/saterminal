@@ -10,9 +10,7 @@ import {
   questionBankVersion,
   saveQuestionBank,
   selectPracticeQuestion,
-  syncQuestionBank,
   type QuestionBank,
-  type SyncProgress,
 } from "../src/question-bank.ts";
 import type { PracticeQuestion, QuestionDetail, QuestionMeta } from "../src/types.ts";
 
@@ -74,65 +72,6 @@ describe("question bank", () => {
     expect(findQuestionInBank(bank, "cid")?.meta.skill_cd).toBe("CID");
   });
 
-  test("syncs metadata and detail payloads into the local bank", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "saterminal-bank-"));
-    const path = join(dir, "question-bank.json.gz");
-    const originalFetch = globalThis.fetch;
-    const progress: SyncProgress[] = [];
-    const requested: string[] = [];
-
-    globalThis.fetch = ((input: RequestInfo | URL) => {
-      const url = String(input);
-      requested.push(url);
-
-      if (url.includes("/get-questions?")) {
-        return Promise.resolve(jsonResponse({
-          success: true,
-          data: [
-            meta("a", "external-a", "M", "WIC"),
-            meta("b", "external-b", "H", "CID"),
-            meta("a", "external-a", "M", "WIC"),
-          ],
-        }));
-      }
-
-      if (url.endsWith("/external-a")) {
-        return Promise.resolve(jsonResponse({ success: true, data: detail("external-a") }));
-      }
-
-      if (url.endsWith("/external-b")) {
-        return Promise.resolve(jsonResponse({ success: true, data: detail("external-b") }));
-      }
-
-      return Promise.resolve(new Response("not found", { status: 404, statusText: "Not Found" }));
-    }) as typeof fetch;
-
-    try {
-      const result = await syncQuestionBank({
-        concurrency: 1,
-        now: new Date("2026-01-02T00:00:00.000Z"),
-        onProgress(value) {
-          progress.push(value);
-        },
-      }, path);
-
-      expect(result).toMatchObject({
-        path,
-        source: "https://practicesat.vercel.app/api",
-        synced_at: "2026-01-02T00:00:00.000Z",
-        questions: 2,
-      });
-      expect((await loadQuestionBank(path))?.questions.map((question) => question.meta.questionId)).toEqual(["a", "b"]);
-      expect(requested[0]).toContain("difficulties=E%2CM%2CH");
-      expect(requested.filter((url) => url.includes("/api/question/")).length).toBe(2);
-      expect(progress.map((value) => value.phase)).toContain("writing");
-      expect((await readFile(path, "utf8")).startsWith("{")).toBe(true);
-    } finally {
-      globalThis.fetch = originalFetch;
-      await rm(dir, { recursive: true, force: true });
-    }
-  });
-
   test("materializes a bundled zstd bank into a plain user cache", async () => {
     const dir = await mkdtemp(join(tmpdir(), "saterminal-bank-"));
     const cachePath = join(dir, "cache", "question-bank.json");
@@ -190,11 +129,4 @@ function detail(externalid: string): QuestionDetail {
     correct_answer: ["A"],
     rationale: "<p>Because.</p>",
   };
-}
-
-function jsonResponse(value: unknown): Response {
-  return new Response(JSON.stringify(value), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
 }

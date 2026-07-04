@@ -70,7 +70,7 @@ function renderSetup(doc: Frame): void {
   const location = displayStateDir(stateDir);
 
   text(doc, 0, 3, "storage location", { bold: true });
-  text(doc, 0, 5, "Sat saves progress, focus settings, summary stats, and the synced question cache locally.", { color: "gray" }, width);
+  text(doc, 0, 5, "Sat saves progress, focus settings, summary stats, and the local question cache.", { color: "gray" }, width);
   text(doc, 0, 7, "Allow creating this directory?", { bold: true }, width);
   text(doc, 0, 9, location, { color: "cyan" }, width);
 }

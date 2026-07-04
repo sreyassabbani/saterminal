@@ -20,8 +20,9 @@ async function loadPersistedState(state: AppState, options: TuiOptions = {}): Pr
   state.focusRow = 1;
   state.notice = undefined;
 
-  if (!(await questionBankStatus()).exists) {
-    state.notice = "Question bank not synced. Run `sat sync` before practice.";
+  const bank = await questionBankStatus();
+  if (bank.exists && bank.questions) {
+    state.notice = `${bank.questions} questions loaded.`;
   }
 
   if (options.mode === "review") {

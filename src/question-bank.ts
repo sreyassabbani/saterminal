@@ -1,12 +1,8 @@
 import { mkdir, rename, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import pLimit from "p-limit";
-import { difficultyOptions, domainsForSkills, skillOptions } from "./focus.ts";
-import { fetchPracticeSatDetail, fetchPracticeSatMetas } from "./practice-sat.ts";
 import { stateDir } from "./state.ts";
 import type { Difficulty, Focus, PracticeQuestion, QuestionMeta, Skill } from "./types.ts";
-import { apiBaseUrl } from "./urls.ts";
 
 export const questionBankVersion = 1;
 export const questionBankPath = join(stateDir, "cache", "question-bank.json");
@@ -28,72 +24,7 @@ export type QuestionBankStatus = {
   questions?: number;
 };
 
-export type SyncProgress = {
-  phase: "metadata" | "details" | "writing";
-  completed: number;
-  total: number;
-  question_id?: string;
-};
-
-export type SyncOptions = {
-  concurrency?: number;
-  now?: Date;
-  onProgress?: (progress: SyncProgress) => void;
-};
-
-export type SyncResult = {
-  path: string;
-  source: string;
-  synced_at: string;
-  questions: number;
-  size_bytes: number;
-};
-
 let memoryBank: Promise<QuestionBank | undefined> | undefined;
-
-export async function syncQuestionBank(options: SyncOptions = {}, path = questionBankPath): Promise<SyncResult> {
-  const focus = allQuestionFocus();
-  options.onProgress?.({ phase: "metadata", completed: 0, total: 0 });
-  const metas = uniqueQuestionMetas(await fetchPracticeSatMetas([], focus));
-  options.onProgress?.({ phase: "metadata", completed: metas.length, total: metas.length });
-
-  let completed = 0;
-  const limit = pLimit(Math.max(1, options.concurrency ?? 8));
-  const questions = await Promise.all(metas.map((meta) => limit(async () => {
-    const detail = await fetchPracticeSatDetail(meta.external_id);
-    completed += 1;
-    options.onProgress?.({
-      phase: "details",
-      completed,
-      total: metas.length,
-      question_id: meta.questionId,
-    });
-    return { meta, detail };
-  })));
-
-  const bank: QuestionBank = {
-    version: questionBankVersion,
-    source: apiBaseUrl,
-    synced_at: (options.now ?? new Date()).toISOString(),
-    questions,
-  };
-
-  options.onProgress?.({ phase: "writing", completed: questions.length, total: questions.length });
-  await saveQuestionBank(bank, path);
-  const size_bytes = (await stat(path)).size;
-
-  if (path === questionBankPath) {
-    memoryBank = Promise.resolve(bank);
-  }
-
-  return {
-    path,
-    source: bank.source,
-    synced_at: bank.synced_at,
-    questions: bank.questions.length,
-    size_bytes,
-  };
-}
 
 export async function getPracticeQuestion(attemptedIds: Iterable<string>, focus: Focus): Promise<PracticeQuestion> {
   const question = selectPracticeQuestion(await requireQuestionBank(), attemptedIds, focus);
@@ -197,18 +128,10 @@ export function resetQuestionBankMemoryCache(): void {
 async function requireQuestionBank(path = questionBankPath): Promise<QuestionBank> {
   const bank = await loadQuestionBank(path);
   if (!bank) {
-    throw new Error("Question bank cache is missing. Run `sat sync` to download questions.");
+    throw new Error("Question bank is missing from the package.");
   }
 
   return bank;
-}
-
-function allQuestionFocus(): Focus {
-  return {
-    difficulties: [...difficultyOptions],
-    domains: domainsForSkills(skillOptions),
-    skills: [...skillOptions],
-  };
 }
 
 async function readQuestionBank(path: string): Promise<QuestionBank | undefined> {
@@ -293,19 +216,4 @@ function isQuestionDetail(value: unknown): value is PracticeQuestion["detail"] {
 
 function questionMatchesFocus(meta: QuestionMeta, focus: Focus): boolean {
   return focus.difficulties.includes(meta.difficulty as Difficulty) && focus.skills.includes(meta.skill_cd as Skill);
-}
-
-function uniqueQuestionMetas(metas: QuestionMeta[]): QuestionMeta[] {
-  const seen = new Set<string>();
-  const unique: QuestionMeta[] = [];
-
-  for (const meta of metas) {
-    if (seen.has(meta.questionId)) {
-      continue;
-    }
-    seen.add(meta.questionId);
-    unique.push(meta);
-  }
-
-  return unique;
 }

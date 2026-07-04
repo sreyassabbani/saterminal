@@ -12,14 +12,13 @@
   "scripts": {
     "dev": "bun run src/main.ts",
     "start": "bun run src/main.ts",
+    "update-bank": "bun run scripts/update-question-bank.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "filesize": "^11.0.19",
     "he": "^1.2.0",
     "node-html-parser": "^8.0.4",
-    "p-limit": "^7.3.0",
     "terminal-kit": "^3.1.2",
     "word-wrap": "^1.2.5"
   },
@@ -27,6 +26,7 @@
     "@types/bun": "^1.2.22",
     "@types/he": "^1.2.3",
     "@types/word-wrap": "^1.2.1",
+    "p-limit": "^7.3.0",
     "typescript": "^5.9.3"
   }
 }

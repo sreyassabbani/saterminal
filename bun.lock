@@ -5,10 +5,8 @@
     "": {
       "name": "saterminal",
       "dependencies": {
-        "filesize": "^11.0.19",
         "he": "^1.2.0",
         "node-html-parser": "^8.0.4",
-        "p-limit": "^7.3.0",
         "terminal-kit": "^3.1.2",
         "word-wrap": "^1.2.5",
       },
@@ -16,6 +14,7 @@
         "@types/bun": "^1.2.22",
         "@types/he": "^1.2.3",
         "@types/word-wrap": "^1.2.1",
+        "p-limit": "^7.3.0",
         "typescript": "^5.9.3",
       },
     },
@@ -52,8 +51,6 @@
     "domutils": ["domutils@3.2.2", "", { "dependencies": { "dom-serializer": "^2.0.0", "domelementtype": "^2.3.0", "domhandler": "^5.0.3" } }, "sha512-6kZKyUajlDuqlHKVX1w7gyslj9MPIXzIFiz/rGu35uC1wMi+kMhQwGhl4lt9unC9Vb9INnY9Z3/ZA3+FhASLaw=="],
 
     "entities": ["entities@8.0.0", "", {}, "sha512-zwfzJecQ/Uej6tusMqwAqU/6KL2XaB2VZ2Jg54Je6ahNBGNH6Ek6g3jjNCF0fG9EWQKGZNddNjU5F1ZQn/sBnA=="],
-
-    "filesize": ["filesize@11.0.19", "", {}, "sha512-9Q2itINBvCHwFw9v5X7czZm855yAiFIYlnugrh7+8tYO4ITHZMzV91m35q2FngL9hoZwwjSTQACFF/W52OzJZQ=="],
 
     "he": ["he@1.2.0", "", { "bin": { "he": "bin/he" } }, "sha512-F/1DnUGPopORZi0ni+CvrCgHQ5FyEAHRLSApuYWMmrbSwoN2Mn/7k+Gl38gJnR7yyDZk6WLXwiGod1JOWNDKGw=="],
 

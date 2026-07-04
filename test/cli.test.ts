@@ -16,13 +16,13 @@ describe("cli", () => {
     expect(parseArgs([])).toEqual({ kind: "tui" });
     expect(parseArgs(["history"])).toEqual({ kind: "command", command: "history", format: "text" });
     expect(parseArgs(["history", "-p"])).toEqual({ kind: "command", command: "history", format: "pretty" });
-    expect(parseArgs(["sync", "--json"])).toEqual({ kind: "sync", format: "json" });
     expect(parseArgs(["--json", "stats"])).toEqual({ kind: "command", command: "stats", format: "json" });
     expect(parseArgs(["weak", "--pretty", "--no-color"])).toEqual({ kind: "command", command: "weak", format: "pretty", color: false });
     expect(parseArgs(["review"])).toEqual({ kind: "review" });
     expect(parseArgs(["--version"])).toEqual({ kind: "version" });
     expect(parseArgs(["-V"])).toEqual({ kind: "version" });
     expect(parseArgs(["--history"])).toEqual({ kind: "error", message: "Unknown option: --history" });
+    expect(parseArgs(["sync"])).toEqual({ kind: "error", message: "Unknown command: sync" });
   });
 
   test("prints the package version", async () => {
@@ -57,11 +57,6 @@ describe("cli", () => {
       kind: "error",
       message: "History filters only work with `sat history`.",
     });
-    expect(parseArgs(["sync", "--wrong"])).toEqual({
-      kind: "error",
-      message: "`sat sync` does not support history filters.",
-    });
-
     const attempts = new Map();
     recordAttempt(attempts, "old", false, 10, new Date("2026-01-01T00:00:00.000Z"));
     recordAttempt(attempts, "wrong", false, 20, new Date("2026-01-08T00:00:00.000Z"));
