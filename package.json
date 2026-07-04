@@ -1,10 +1,13 @@
 {
   "name": "saterminal",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "type": "module",
   "bin": {
-    "sat": "./src/main.ts"
+    "sat": "src/main.ts"
   },
+  "files": [
+    "src"
+  ],
   "scripts": {
     "dev": "bun run src/main.ts",
     "start": "bun run src/main.ts",
