@@ -6,6 +6,7 @@ import {
   formatStats,
   formatWeak,
   parseArgs,
+  runCliCommand,
 } from "../src/cli.ts";
 import { buildSummaryRows, recordAttempt } from "../src/state.ts";
 import type { AttemptEvent, Focus, QuestionMeta } from "../src/types.ts";
@@ -18,7 +19,23 @@ describe("cli", () => {
     expect(parseArgs(["--json", "stats"])).toEqual({ kind: "command", command: "stats", format: "json" });
     expect(parseArgs(["weak", "--pretty", "--no-color"])).toEqual({ kind: "command", command: "weak", format: "pretty", color: false });
     expect(parseArgs(["review"])).toEqual({ kind: "review" });
+    expect(parseArgs(["--version"])).toEqual({ kind: "version" });
+    expect(parseArgs(["-V"])).toEqual({ kind: "version" });
     expect(parseArgs(["--history"])).toEqual({ kind: "error", message: "Unknown option: --history" });
+  });
+
+  test("prints the package version", async () => {
+    const packageJson = await Bun.file(new URL("../package.json", import.meta.url)).json() as { version: string };
+    let output = "";
+
+    const code = await runCliCommand({ kind: "version" }, {
+      write(value: string) {
+        output += value;
+      },
+    });
+
+    expect(code).toBe(0);
+    expect(output).toBe(`sat ${packageJson.version}\n`);
   });
 
   test("rejects conflicting output format flags", () => {

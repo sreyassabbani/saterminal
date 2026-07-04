@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { difficultyLabels, domainLabels, focusSummary, skillLabels } from "./focus.ts";
 import { progressBarText } from "./progress.ts";
 import { buildSummaryRows, loadAttemptEvents, loadAttempts, loadFocus } from "./state.ts";
@@ -16,6 +17,7 @@ export type HistoryFilters = {
 export type ParsedCli =
   | { kind: "tui" }
   | { kind: "review" }
+  | { kind: "version" }
   | { kind: "help" }
   | { kind: "error"; message: string }
   | {
@@ -105,6 +107,10 @@ export function parseArgs(args: string[]): ParsedCli {
 
     if (arg === "-h" || arg === "--help" || arg === "help") {
       return { kind: "help" };
+    }
+
+    if (arg === "-V" || arg === "--version") {
+      return { kind: "version" };
     }
 
     if (arg === "-p" || arg === "--pretty") {
@@ -219,6 +225,11 @@ export async function runCliCommand(
 ): Promise<number> {
   if (parsed.kind === "help") {
     stdout.write(`${helpText()}\n`);
+    return 0;
+  }
+
+  if (parsed.kind === "version") {
+    stdout.write(`sat ${await packageVersion()}\n`);
     return 0;
   }
 
@@ -392,10 +403,17 @@ export function helpText(): string {
     "  -p, --pretty    Use colorized human-readable output",
     "      --json      Output JSON",
     "      --no-color  Disable ANSI color in pretty output",
+    "  -V, --version   Show version",
     "  -h, --help      Show this help",
     "",
     "Run `sat` with no command to open the interactive TUI.",
   ].join("\n");
+}
+
+async function packageVersion(): Promise<string> {
+  const packageJson = await readFile(new URL("../package.json", import.meta.url), "utf8");
+  const parsed = JSON.parse(packageJson) as { version?: unknown };
+  return typeof parsed.version === "string" && parsed.version ? parsed.version : "unknown";
 }
 
 export function filterHistory(attempts: Attempt[], filters: HistoryFilters = {}, now = new Date()): Attempt[] {
