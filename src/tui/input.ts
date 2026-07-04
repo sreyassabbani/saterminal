@@ -213,6 +213,11 @@ async function handleFocusKey(state: AppState, name: string, data?: KeyData): Pr
 export async function loadNextQuestion(state: AppState): Promise<void> {
   state.view = "loading";
   state.question = await takeNextQuestion(state);
+  if (!state.question) {
+    state.notice = "Review queue complete.";
+    state.view = "history";
+    return;
+  }
   state.selected = 0;
   resetPaneScroll(state);
   state.elapsedMs = 0;
@@ -225,6 +230,10 @@ export async function loadNextQuestion(state: AppState): Promise<void> {
 }
 
 async function takeNextQuestion(state: AppState) {
+  if (state.reviewMode) {
+    return takeReviewQuestion(state);
+  }
+
   const cached = state.nextQuestion;
   state.nextQuestion = undefined;
 
@@ -238,7 +247,27 @@ async function takeNextQuestion(state: AppState) {
   return fetchPracticeQuestion(questionExclusions(state), state.focus);
 }
 
+async function takeReviewQuestion(state: AppState): Promise<PracticeQuestion | undefined> {
+  while (state.reviewQuestionIds && state.reviewQuestionIds.length > 0) {
+    const id = state.reviewQuestionIds.shift();
+    if (!id) {
+      continue;
+    }
+
+    const question = await findQuestionByShortId(id);
+    if (question) {
+      return question;
+    }
+  }
+
+  return undefined;
+}
+
 function cacheNextQuestion(state: AppState): void {
+  if (state.reviewMode) {
+    return;
+  }
+
   state.nextQuestion = fetchPracticeQuestion(questionExclusions(state), state.focus).catch(() => undefined);
 }
 

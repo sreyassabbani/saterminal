@@ -84,9 +84,10 @@ function renderPaused(doc: Frame): void {
 function header(doc: Frame, state: AppState): void {
   const { width } = terminalSize();
   const answered = state.attempts.size;
+  const mode = state.reviewMode ? "review queue" : "reading/writing";
   const timer = state.timerHidden ? "" : `  time ${formatElapsed(elapsedQuestionSeconds(state))}${timerStatus(state)}`;
   text(doc, 0, 0, "sat", { bold: true });
-  text(doc, 7, 0, `reading/writing  answered ${answered}${timer}`, { color: "gray" }, width - 7);
+  text(doc, 7, 0, `${mode}  answered ${answered}${timer}`, { color: "gray" }, width - 7);
   text(doc, 0, 1, "-".repeat(width), { color: "gray" }, width);
 }
 
@@ -229,6 +230,9 @@ function renderHistory(doc: Frame, state: AppState): void {
   const { width, height } = terminalSize();
   let y = 3;
   text(doc, 0, y++, "answered questions", { color: "cyan", bold: true });
+  if (state.notice) {
+    text(doc, 0, y++, state.notice, { color: "yellow" }, width);
+  }
   y++;
 
   if (attempts.length === 0) {
@@ -236,7 +240,7 @@ function renderHistory(doc: Frame, state: AppState): void {
     return;
   }
 
-  text(doc, 0, y++, "  question   status     updated", { color: "gray" }, width);
+  text(doc, 0, y++, "  question   status     skill  updated", { color: "gray" }, width);
 
   const visibleRows = Math.max(1, height - 8);
   const start = Math.max(0, Math.min(state.historyIndex - visibleRows + 1, attempts.length - visibleRows));
@@ -479,7 +483,8 @@ function renderHistoryRow(doc: Frame, attempt: Attempt, selected: boolean, y: nu
   text(doc, 0, y, selected ? ">" : " ", selected ? { color: "yellow", bold: true } : { color: "gray" }, 1);
   text(doc, 2, y, attempt.question_id, { color: selected ? "yellow" : "cyan", ...strong }, 10);
   text(doc, 13, y, attempt.outcome, { ...outcomeAttr(attempt.outcome), ...strong }, 9);
-  text(doc, 24, y, attempt.updated_at, { color: selected ? "yellow" : "gray", ...strong }, width - 24);
+  text(doc, 24, y, attempt.skill ?? "-", { color: selected ? "yellow" : "green", ...strong }, 5);
+  text(doc, 31, y, shortTimestamp(attempt.updated_at), { color: selected ? "yellow" : "gray", ...strong }, width - 31);
 }
 
 function renderSummaryRow(doc: Frame, row: SummaryRow, y: number, width: number): void {
@@ -520,6 +525,19 @@ function formatDomain(meta: QuestionMeta): string {
 
 function formatSkill(meta: QuestionMeta): string {
   return meta.skill_desc ? `${meta.skill_cd}  ${meta.skill_desc}` : meta.skill_cd;
+}
+
+function shortTimestamp(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hour = String(date.getHours()).padStart(2, "0");
+  const minute = String(date.getMinutes()).padStart(2, "0");
+  return `${month}/${day} ${hour}:${minute}`;
 }
 
 function outcomeAttr(outcome: Outcome): TextAttr {

@@ -6,6 +6,8 @@ const parsed = parseArgs(process.argv.slice(2));
 
 if (parsed.kind === "tui") {
   await runTui();
+} else if (parsed.kind === "review") {
+  await runTui({ mode: "review" });
 } else {
   process.exitCode = await runCliCommand(parsed);
 }

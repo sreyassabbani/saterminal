@@ -1,24 +1,45 @@
 import { defaultFocus } from "../focus.ts";
 import { ensureStateFiles, loadAttempts, loadFocus, stateDirExists } from "../state.ts";
-import { handleKey } from "./input.ts";
+import { handleKey, loadNextQuestion } from "./input.ts";
 import { createFrameRenderer, render } from "./render.ts";
 import { term } from "./kit.ts";
 import type { AppState, KeyData } from "./types.ts";
+import type { Attempt } from "../types.ts";
 
-async function loadPersistedState(state: AppState): Promise<void> {
+export type TuiOptions = {
+  mode?: "practice" | "review";
+};
+
+async function loadPersistedState(state: AppState, options: TuiOptions = {}): Promise<void> {
   await ensureStateFiles();
   state.attempts = await loadAttempts();
   state.focus = await loadFocus();
   state.focusIndex = 1;
   state.focusColumn = 0;
   state.focusRow = 1;
+  state.notice = undefined;
+
+  if (options.mode === "review") {
+    state.reviewMode = true;
+    state.reviewQuestionIds = reviewQuestionIds(state.attempts);
+    if (state.reviewQuestionIds.length === 0) {
+      state.notice = "No review queue yet. Miss or correct a question first.";
+      state.view = "history";
+      return;
+    }
+
+    await loadNextQuestion(state);
+    return;
+  }
+
   state.view = "focus";
 }
 
-export async function runTui(): Promise<void> {
+export async function runTui(options: TuiOptions = {}): Promise<void> {
   const state: AppState = {
     attempts: new Map(),
     skippedIds: new Set(),
+    reviewMode: options.mode === "review",
     focus: defaultFocus,
     focusIndex: 1,
     focusColumn: 0,
@@ -61,7 +82,7 @@ export async function runTui(): Promise<void> {
 
   try {
     if (await stateDirExists()) {
-      await loadPersistedState(state);
+      await loadPersistedState(state, options);
     } else {
       state.view = "setup";
     }
@@ -81,7 +102,7 @@ export async function runTui(): Promise<void> {
 
       if (state.view === "setup") {
         if (name === "y" || name === "ENTER") {
-          await loadPersistedState(state);
+          await loadPersistedState(state, options);
         } else if (name === "n") {
           cleanup();
           return;
@@ -99,4 +120,15 @@ export async function runTui(): Promise<void> {
       render(renderer, state);
     }
   });
+}
+
+function reviewQuestionIds(attempts: Map<string, Attempt>): string[] {
+  return [...attempts.values()]
+    .filter((attempt) => attempt.outcome === "incorrect" || attempt.outcome === "corrected")
+    .sort((a, b) => reviewPriority(a) - reviewPriority(b) || a.updated_at.localeCompare(b.updated_at))
+    .map((attempt) => attempt.question_id);
+}
+
+function reviewPriority(attempt: Attempt): number {
+  return attempt.outcome === "incorrect" ? 0 : 1;
 }

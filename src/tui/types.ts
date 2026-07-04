@@ -8,6 +8,8 @@ export type AppState = {
   attempts: Map<string, Attempt>;
   skippedIds: Set<string>;
   nextQuestion?: Promise<PracticeQuestion | undefined>;
+  reviewMode?: boolean;
+  reviewQuestionIds?: string[];
   focus: Focus;
   focusIndex: number;
   focusColumn: number;
@@ -26,6 +28,7 @@ export type AppState = {
   lastCorrect?: boolean;
   detailQuestion?: PracticeQuestion;
   historyIndex: number;
+  notice?: string;
   error?: string;
 };
 
