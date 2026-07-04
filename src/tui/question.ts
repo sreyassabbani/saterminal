@@ -30,11 +30,11 @@ export function questionRows(detail: QuestionDetail, width: number): DisplayRow[
 }
 
 export function practiceQuestionUrl(question: PracticeQuestion): string {
-  return `https://practicesat.vercel.app/question?questionId=${encodeURIComponent(question.meta.questionId)}`;
+  return `https://mysatprep.fun/question/${encodeURIComponent(question.meta.questionId)}`;
 }
 
 export function practiceQuestionApiUrl(question: PracticeQuestion): string {
-  return `https://practicesat.vercel.app/api/question/${encodeURIComponent(question.meta.external_id)}`;
+  return `https://mysatprep.fun/api/question/${encodeURIComponent(question.meta.external_id)}`;
 }
 
 export function openExternalQuestion(question: PracticeQuestion): void {

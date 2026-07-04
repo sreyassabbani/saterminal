@@ -1,11 +1,12 @@
 import { defaultFocus, domainsForSkills } from "./focus.ts";
 import type { Focus, PracticeQuestion, QuestionDetail, QuestionMeta } from "./types.ts";
 
-const baseUrl = "https://practicesat.vercel.app/api";
+const baseUrl = "https://mysatprep.fun/api";
 
 type ApiEnvelope<T> = {
   success: boolean;
   data: T;
+  error?: string;
   message?: string;
 };
 
@@ -18,7 +19,7 @@ export async function fetchQuestionBank(excludeIds: Iterable<string> = [], focus
 
   const response = await fetchJson<ApiEnvelope<QuestionMeta[]>>(`${baseUrl}/get-questions?${params}`);
   if (!response.success || !Array.isArray(response.data)) {
-    throw new Error(response.message || "Question bank fetch failed.");
+    throw new Error(response.error || response.message || "Question bank fetch failed.");
   }
 
   return response.data.filter((item) => item.questionId && item.external_id);
@@ -27,7 +28,7 @@ export async function fetchQuestionBank(excludeIds: Iterable<string> = [], focus
 export async function fetchQuestion(id: string): Promise<QuestionDetail> {
   const response = await fetchJson<ApiEnvelope<QuestionDetail>>(`${baseUrl}/question/${id}`);
   if (!response.success || !response.data) {
-    throw new Error(response.message || `Question ${id} fetch failed.`);
+    throw new Error(response.error || response.message || `Question ${id} fetch failed.`);
   }
 
   return response.data;
@@ -69,10 +70,44 @@ async function fetchJson<T>(url: string): Promise<T> {
       accept: "application/json",
     },
   });
+  const body = await response.text();
+  const contentType = response.headers.get("content-type") ?? "unknown content type";
 
   if (!response.ok) {
-    throw new Error(`${response.status} ${response.statusText}`);
+    throw new Error(`${response.status} ${response.statusText}: ${responseError(body)}`);
   }
 
-  return (await response.json()) as T;
+  if (!contentType.toLowerCase().includes("application/json")) {
+    throw new Error(`Expected JSON from ${url}, got ${contentType}: ${snippet(body)}`);
+  }
+
+  try {
+    return JSON.parse(body) as T;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Invalid JSON from ${url}: ${message}. Response: ${snippet(body)}`);
+  }
+}
+
+function responseError(body: string): string {
+  try {
+    const parsed = JSON.parse(body) as { error?: unknown; message?: unknown; details?: unknown };
+    const message = parsed.error || parsed.message || parsed.details;
+    if (typeof message === "string" && message.trim()) {
+      return message;
+    }
+  } catch {
+    // Fall back to the raw body below.
+  }
+
+  return snippet(body);
+}
+
+function snippet(value: string): string {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return "empty response";
+  }
+
+  return normalized.length > 160 ? `${normalized.slice(0, 157)}...` : normalized;
 }
