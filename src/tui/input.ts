@@ -1,5 +1,5 @@
 import { fetchPracticeQuestion, findQuestionByShortId } from "../api.ts";
-import { recordAttempt, saveAttempts, saveFocus, saveSummary } from "../state.ts";
+import { appendAttemptEvent, recordAttempt, saveAttempts, saveFocus, saveSummary } from "../state.ts";
 import { focusGrid, moveFocusGridPosition, normalizeFocusGridPosition, toggleFocusGridRow } from "./focus-grid.ts";
 import {
   answerKeys,
@@ -120,7 +120,9 @@ export async function handleKey(state: AppState, name: string, data?: KeyData): 
       state.lastCorrect = correct;
       pauseTimer(state);
       if (state.question) {
-        recordAttempt(state.attempts, state.question.meta.questionId, correct, elapsedSeconds);
+        const answeredAt = new Date();
+        recordAttempt(state.attempts, state.question.meta.questionId, correct, elapsedSeconds, answeredAt, state.question.meta);
+        await appendAttemptEvent(state.question.meta, correct, elapsedSeconds, answeredAt);
         await saveAttempts(state.attempts);
         await saveSummary(state.attempts);
       }

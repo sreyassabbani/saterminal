@@ -5,6 +5,23 @@ export type Attempt = {
   outcome: Outcome;
   updated_at: string;
   elapsed_seconds: number;
+  difficulty?: string;
+  domain?: string;
+  domain_desc?: string;
+  skill?: string;
+  skill_desc?: string;
+};
+
+export type AttemptEvent = {
+  question_id: string;
+  correct: boolean;
+  answered_at: string;
+  elapsed_seconds: number;
+  difficulty: string;
+  domain: string;
+  domain_desc?: string;
+  skill: string;
+  skill_desc?: string;
 };
 
 export type SummaryRow = {

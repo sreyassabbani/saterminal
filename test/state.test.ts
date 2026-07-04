@@ -6,6 +6,8 @@ import { defaultFocus, normalizeFocus } from "../src/focus.ts";
 import {
   buildSummaryRows,
   displayStateDir,
+  appendAttemptEvent,
+  loadAttemptEvents,
   loadAttempts,
   loadFocus,
   nextOutcome,
@@ -15,6 +17,7 @@ import {
   saveFocus,
   stateDirExists,
 } from "../src/state.ts";
+import type { QuestionMeta } from "../src/types.ts";
 
 describe("state", () => {
   test("resolves state dir under the user home directory", () => {
@@ -43,12 +46,16 @@ describe("state", () => {
 
     try {
       const attempts = await loadAttempts(path);
-      recordAttempt(attempts, "abc12345", false, 42, new Date("2026-01-01T00:00:00.000Z"));
+      recordAttempt(attempts, "abc12345", false, 42, new Date("2026-01-01T00:00:00.000Z"), sampleMeta);
       await saveAttempts(attempts, path);
 
       const raw = await readFile(path, "utf8");
       expect(raw).toBe(
-        "question_id,outcome,updated_at,elapsed_seconds\nabc12345,incorrect,2026-01-01T00:00:00.000Z,42\n",
+        [
+          "question_id,outcome,updated_at,elapsed_seconds,difficulty,domain,domain_desc,skill,skill_desc",
+          "abc12345,incorrect,2026-01-01T00:00:00.000Z,42,H,CAS,Craft and Structure,WIC,Words in Context",
+          "",
+        ].join("\n"),
       );
       expect(await loadAttempts(path)).toEqual(attempts);
     } finally {
@@ -71,7 +78,11 @@ describe("state", () => {
     try {
       await writeFile(
         path,
-        "question_id,outcome,updated_at,elapsed_seconds\n\"abc,123\",correct,\"2026-01-01T00:00:00.000Z\",12\n",
+        [
+          "question_id,outcome,updated_at,elapsed_seconds,difficulty,domain,domain_desc,skill,skill_desc",
+          "\"abc,123\",correct,\"2026-01-01T00:00:00.000Z\",12,M,INI,\"Information, Ideas\",CID,Central Ideas",
+          "",
+        ].join("\n"),
         "utf8",
       );
 
@@ -81,6 +92,11 @@ describe("state", () => {
           outcome: "correct",
           updated_at: "2026-01-01T00:00:00.000Z",
           elapsed_seconds: 12,
+          difficulty: "M",
+          domain: "INI",
+          domain_desc: "Information, Ideas",
+          skill: "CID",
+          skill_desc: "Central Ideas",
         }],
       ]));
     } finally {
@@ -108,6 +124,49 @@ describe("state", () => {
       accuracy: "1.00",
       avg_seconds: "30.0",
     });
+  });
+
+  test("appends and loads attempt events", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "saterminal-"));
+    const path = join(dir, "events.csv");
+
+    try {
+      await appendAttemptEvent(sampleMeta, true, 31, new Date("2026-01-01T12:00:00.000Z"), path);
+      await appendAttemptEvent(
+        { ...sampleMeta, questionId: "def67890", skill_cd: "CTC", skill_desc: "Cross-Text Connections" },
+        false,
+        44,
+        new Date("2026-01-02T12:00:00.000Z"),
+        path,
+      );
+
+      expect(await loadAttemptEvents(path)).toEqual([
+        {
+          question_id: "abc12345",
+          correct: true,
+          answered_at: "2026-01-01T12:00:00.000Z",
+          elapsed_seconds: 31,
+          difficulty: "H",
+          domain: "CAS",
+          domain_desc: "Craft and Structure",
+          skill: "WIC",
+          skill_desc: "Words in Context",
+        },
+        {
+          question_id: "def67890",
+          correct: false,
+          answered_at: "2026-01-02T12:00:00.000Z",
+          elapsed_seconds: 44,
+          difficulty: "H",
+          domain: "CAS",
+          domain_desc: "Craft and Structure",
+          skill: "CTC",
+          skill_desc: "Cross-Text Connections",
+        },
+      ]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 
   test("normalizes invalid focus selections to valid defaults", () => {
@@ -165,3 +224,14 @@ describe("state", () => {
     }
   });
 });
+
+const sampleMeta: QuestionMeta = {
+  questionId: "abc12345",
+  uId: "abc12345",
+  external_id: "external-1",
+  difficulty: "H",
+  primary_class_cd: "CAS",
+  primary_class_cd_desc: "Craft and Structure",
+  skill_cd: "WIC",
+  skill_desc: "Words in Context",
+};

@@ -1,8 +1,8 @@
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, sep } from "node:path";
 import { defaultFocus, normalizeFocus } from "./focus.ts";
-import type { Attempt, Focus, Outcome, SummaryRow } from "./types.ts";
+import type { Attempt, AttemptEvent, Focus, Outcome, QuestionMeta, SummaryRow } from "./types.ts";
 
 export function resolveStateDir(home = homedir()): string {
   return join(home, ".saterminal", "userlocal");
@@ -23,10 +23,12 @@ export function displayStateDir(dir: string, home = homedir()): string {
 
 export const stateDir = resolveStateDir();
 export const attemptsPath = join(stateDir, "attempts.csv");
+export const eventsPath = join(stateDir, "events.csv");
 export const summaryPath = join(stateDir, "summary.csv");
 export const focusPath = join(stateDir, "focus.json");
 
-const attemptsHeader = "question_id,outcome,updated_at,elapsed_seconds";
+const attemptsHeader = "question_id,outcome,updated_at,elapsed_seconds,difficulty,domain,domain_desc,skill,skill_desc";
+const eventsHeader = "question_id,correct,answered_at,elapsed_seconds,difficulty,domain,domain_desc,skill,skill_desc";
 const summaryHeader = "metric,value,updated_at";
 
 export async function stateDirExists(dir = stateDir): Promise<boolean> {
@@ -44,6 +46,7 @@ export async function stateDirExists(dir = stateDir): Promise<boolean> {
 export async function ensureStateFiles(dir = stateDir): Promise<void> {
   await mkdir(dir, { recursive: true });
   await ensureFile(join(dir, "attempts.csv"), `${attemptsHeader}\n`);
+  await ensureFile(join(dir, "events.csv"), `${eventsHeader}\n`);
   await ensureFile(join(dir, "summary.csv"), `${summaryHeader}\n`);
   await ensureFile(join(dir, "focus.json"), `${JSON.stringify(defaultFocus, null, 2)}\n`);
 }
@@ -55,7 +58,7 @@ export async function loadAttempts(path = attemptsPath): Promise<Map<string, Att
   const attempts = new Map<string, Attempt>();
 
   for (const row of rows.slice(1)) {
-    const [question_id, outcome, updated_at, elapsed_seconds] = row;
+    const [question_id, outcome, updated_at, elapsed_seconds, difficulty, domain, domain_desc, skill, skill_desc] = row;
     if (!question_id || !isOutcome(outcome) || !updated_at) {
       continue;
     }
@@ -65,6 +68,7 @@ export async function loadAttempts(path = attemptsPath): Promise<Map<string, Att
       outcome,
       updated_at,
       elapsed_seconds: readElapsedSeconds(elapsed_seconds),
+      ...optionalMetadata({ difficulty, domain, domain_desc, skill, skill_desc }),
     });
   }
 
@@ -75,9 +79,71 @@ export async function saveAttempts(attempts: Map<string, Attempt>, path = attemp
   await mkdir(dirname(path), { recursive: true });
   const rows = [...attempts.values()]
     .sort((a, b) => a.updated_at.localeCompare(b.updated_at))
-    .map((attempt) => [attempt.question_id, attempt.outcome, attempt.updated_at, String(attempt.elapsed_seconds)]);
+    .map((attempt) => [
+      attempt.question_id,
+      attempt.outcome,
+      attempt.updated_at,
+      String(attempt.elapsed_seconds),
+      attempt.difficulty ?? "",
+      attempt.domain ?? "",
+      attempt.domain_desc ?? "",
+      attempt.skill ?? "",
+      attempt.skill_desc ?? "",
+    ]);
 
   await writeFile(path, formatCsv([attemptsHeader.split(","), ...rows]), "utf8");
+}
+
+export async function loadAttemptEvents(path = eventsPath): Promise<AttemptEvent[]> {
+  await ensureFile(path, `${eventsHeader}\n`);
+  const raw = await readFile(path, "utf8");
+  const rows = parseCsv(raw);
+  const events: AttemptEvent[] = [];
+
+  for (const row of rows.slice(1)) {
+    const [question_id, correct, answered_at, elapsed_seconds, difficulty, domain, domain_desc, skill, skill_desc] = row;
+    if (!question_id || !isBooleanText(correct) || !answered_at) {
+      continue;
+    }
+
+    events.push({
+      question_id,
+      correct: correct === "true",
+      answered_at,
+      elapsed_seconds: readElapsedSeconds(elapsed_seconds),
+      difficulty: difficulty ?? "",
+      domain: domain ?? "",
+      domain_desc: domain_desc || undefined,
+      skill: skill ?? "",
+      skill_desc: skill_desc || undefined,
+    });
+  }
+
+  return events;
+}
+
+export async function appendAttemptEvent(
+  meta: QuestionMeta,
+  correct: boolean,
+  elapsedSeconds = 0,
+  now = new Date(),
+  path = eventsPath,
+): Promise<AttemptEvent> {
+  const event: AttemptEvent = {
+    question_id: meta.questionId,
+    correct,
+    answered_at: now.toISOString(),
+    elapsed_seconds: elapsedSeconds,
+    difficulty: meta.difficulty,
+    domain: meta.primary_class_cd,
+    domain_desc: meta.primary_class_cd_desc,
+    skill: meta.skill_cd,
+    skill_desc: meta.skill_desc,
+  };
+
+  await ensureFile(path, `${eventsHeader}\n`);
+  await appendFile(path, formatCsv([attemptEventRow(event)]), "utf8");
+  return event;
 }
 
 export function recordAttempt(
@@ -86,11 +152,18 @@ export function recordAttempt(
   wasCorrect: boolean,
   elapsedSeconds = 0,
   now = new Date(),
+  meta?: QuestionMeta,
 ): Attempt {
   const existing = attempts.get(questionId);
   const updated_at = now.toISOString();
   const outcome = nextOutcome(existing?.outcome, wasCorrect);
-  const attempt = { question_id: questionId, outcome, updated_at, elapsed_seconds: elapsedSeconds };
+  const attempt = {
+    question_id: questionId,
+    outcome,
+    updated_at,
+    elapsed_seconds: elapsedSeconds,
+    ...metadataFromQuestionMeta(meta),
+  };
   attempts.set(questionId, attempt);
   return attempt;
 }
@@ -157,9 +230,45 @@ function isOutcome(value: string | undefined): value is Outcome {
   return value === "correct" || value === "incorrect" || value === "corrected";
 }
 
+function isBooleanText(value: string | undefined): value is "true" | "false" {
+  return value === "true" || value === "false";
+}
+
 function readElapsedSeconds(value: string | undefined): number {
   const seconds = Number(value);
   return Number.isFinite(seconds) && seconds >= 0 ? seconds : 0;
+}
+
+function metadataFromQuestionMeta(meta: QuestionMeta | undefined): Partial<Attempt> {
+  if (!meta) {
+    return {};
+  }
+
+  return optionalMetadata({
+    difficulty: meta.difficulty,
+    domain: meta.primary_class_cd,
+    domain_desc: meta.primary_class_cd_desc,
+    skill: meta.skill_cd,
+    skill_desc: meta.skill_desc,
+  });
+}
+
+function optionalMetadata(metadata: Pick<Attempt, "difficulty" | "domain" | "domain_desc" | "skill" | "skill_desc">): Partial<Attempt> {
+  return Object.fromEntries(Object.entries(metadata).filter(([, value]) => value)) as Partial<Attempt>;
+}
+
+function attemptEventRow(event: AttemptEvent): string[] {
+  return [
+    event.question_id,
+    String(event.correct),
+    event.answered_at,
+    String(event.elapsed_seconds),
+    event.difficulty,
+    event.domain,
+    event.domain_desc ?? "",
+    event.skill,
+    event.skill_desc ?? "",
+  ];
 }
 
 async function ensureFile(path: string, contents: string): Promise<void> {
