@@ -8,6 +8,7 @@ import {
   materializeQuestionBankCache,
   questionBankStatus,
   questionBankVersion,
+  questionBankIndex,
   saveQuestionBank,
   selectPracticeQuestion,
   type QuestionBank,
@@ -23,7 +24,7 @@ describe("question bank", () => {
       const bank = questionBank([practiceQuestion("a", "external-a", "M", "WIC")]);
       await saveQuestionBank(bank, path);
 
-      expect(await loadQuestionBank(path)).toEqual(bank);
+      expect(await loadQuestionBank(path) as unknown).toEqual(bank);
       expect((await readFile(path, "utf8")).startsWith("{")).toBe(true);
       expect(await questionBankStatus(path)).toMatchObject({
         exists: true,
@@ -44,6 +45,25 @@ describe("question bank", () => {
     try {
       const bank = questionBank([practiceQuestion("a", "external-a", "M", "WIC")]);
       await Bun.write(path, Bun.zstdCompressSync(Buffer.from(`${JSON.stringify(bank)}\n`, "utf8")));
+
+      expect((await loadQuestionBank(path)) as unknown).toEqual(bank);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("trusts processed question entries at runtime", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "saterminal-bank-"));
+    const path = join(dir, "question-bank.json");
+
+    try {
+      const bank: QuestionBank = {
+        version: questionBankVersion,
+        source: "test",
+        synced_at: "not validated at runtime",
+        questions: [{ meta: { questionId: "shape-owned-by-update-bank" } }] as unknown as PracticeQuestion[],
+      };
+      await Bun.write(path, `${JSON.stringify(bank)}\n`);
 
       expect(await loadQuestionBank(path)).toEqual(bank);
     } finally {
@@ -70,6 +90,7 @@ describe("question bank", () => {
     })).toBeUndefined();
 
     expect(findQuestionInBank(bank, "cid")?.meta.skill_cd).toBe("CID");
+    expect(questionBankIndex(bank).byId.get("cid")?.meta.skill_cd).toBe("CID");
   });
 
   test("materializes a bundled zstd bank into a plain user cache", async () => {
