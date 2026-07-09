@@ -35,6 +35,12 @@ describe("text", () => {
     expect(wrapText("one two three four", 8)).toEqual(["one two", "three", "four"]);
   });
 
+  test("wraps ansi-styled wide characters by display width", () => {
+    const lines = wrapText("\x1b[31m猫猫\x1b[0m sat", 4);
+    expect(lines).toEqual(["\x1b[31m猫猫\x1b[0m", "sat"]);
+    expect(lines.map((line) => Bun.stringWidth(line))).toEqual([4, 3]);
+  });
+
   test("preserves underline segments from u tags", () => {
     const segments = parseHtmlSegments("<p>Before <u>underlined claim</u> after.</p>");
     expect(segments.some((segment) => segment.style.underline && segment.text.includes("underlined claim"))).toBe(true);
