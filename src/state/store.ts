@@ -4,9 +4,10 @@ import { Database } from "bun:sqlite";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 import { asc, eq } from "drizzle-orm";
 import { defaultFocus, normalizeFocus } from "../focus.ts";
-import type { Attempt, AttemptEvent, Focus, Outcome, QuestionMeta, SummaryRow } from "../types.ts";
+import type { Attempt, AttemptEvent, Focus, Outcome, QuestionMeta } from "../types.ts";
 import { databasePath, stateDir } from "./paths.ts";
 import { attemptEventsTable, attemptsTable, focusTable } from "./schema.ts";
+import { migrate } from "./migrations.ts";
 
 export async function stateDirExists(dir = stateDir): Promise<boolean> {
   try { return (await stat(dir)).isDirectory(); } catch (error) {
@@ -92,41 +93,6 @@ export async function appendAttemptEvent(meta: QuestionMeta, correct: boolean, e
   } finally { store.close(); }
 }
 
-export function recordAttempt(attempts: Map<string, Attempt>, questionId: string, wasCorrect: boolean, elapsedSeconds = 0, now = new Date(), meta?: QuestionMeta): Attempt {
-  const existing = attempts.get(questionId);
-  const attempt = { question_id: questionId, outcome: nextOutcome(existing?.outcome, wasCorrect), updated_at: now.toISOString(), elapsed_seconds: elapsedSeconds, ...metadataFromQuestionMeta(meta) };
-  attempts.set(questionId, attempt);
-  return attempt;
-}
-
-export function nextOutcome(previous: Outcome | undefined, wasCorrect: boolean): Outcome {
-  if (previous === "correct" || previous === "corrected") return previous;
-  if (previous === "incorrect" && wasCorrect) return "corrected";
-  return wasCorrect ? "correct" : "incorrect";
-}
-
-export function buildSummaryRows(attempts: Map<string, Attempt>, now = new Date()): SummaryRow[] {
-  const updated_at = now.toISOString();
-  const values = [...attempts.values()];
-  const total = values.length;
-  const correct = values.filter((attempt) => attempt.outcome === "correct").length;
-  const incorrect = values.filter((attempt) => attempt.outcome === "incorrect").length;
-  const corrected = values.filter((attempt) => attempt.outcome === "corrected").length;
-  const mastered = correct + corrected;
-  const accuracy = total === 0 ? "0.00" : (mastered / total).toFixed(2);
-  const totalSeconds = values.reduce((sum, attempt) => sum + attempt.elapsed_seconds, 0);
-  return [
-    { metric: "answered", value: String(total), updated_at },
-    { metric: "correct", value: String(correct), updated_at },
-    { metric: "incorrect", value: String(incorrect), updated_at },
-    { metric: "corrected", value: String(corrected), updated_at },
-    { metric: "accuracy", value: accuracy, updated_at },
-    { metric: "avg_seconds", value: (total === 0 ? 0 : totalSeconds / total).toFixed(1), updated_at },
-  ];
-}
-
-export async function saveSummary(_attempts: Map<string, Attempt>, _path = databasePath): Promise<void> {}
-
 export async function loadFocus(path = databasePath): Promise<Focus> {
   const store = await openStore(path);
   try {
@@ -153,51 +119,9 @@ async function openStore(path: string): Promise<Store> {
   return { sqlite, db: drizzle(sqlite), close: () => sqlite.close() };
 }
 
-function migrate(sqlite: Database): void {
-  sqlite.exec(`
-    create table if not exists attempts (
-      question_id text primary key,
-      outcome text not null check (outcome in ('correct', 'incorrect', 'corrected')),
-      updated_at text not null,
-      elapsed_seconds integer not null default 0,
-      difficulty text,
-      domain text,
-      domain_desc text,
-      skill text,
-      skill_desc text
-    );
-    create table if not exists attempt_events (
-      id integer primary key autoincrement,
-      question_id text not null,
-      correct integer not null check (correct in (0, 1)),
-      answered_at text not null,
-      elapsed_seconds integer not null default 0,
-      difficulty text not null default '',
-      domain text not null default '',
-      domain_desc text,
-      skill text not null default '',
-      skill_desc text
-    );
-    create table if not exists focus (
-      id integer primary key check (id = 1),
-      difficulties text not null,
-      domains text not null,
-      skills text not null,
-      updated_at text not null
-    );
-    create index if not exists attempt_events_answered_at_idx on attempt_events(answered_at);
-    create index if not exists attempt_events_question_id_idx on attempt_events(question_id);
-    create index if not exists attempts_updated_at_idx on attempts(updated_at);
-  `);
-}
-
 function readOutcome(value: string): Outcome {
   if (value === "correct" || value === "incorrect" || value === "corrected") return value;
   throw new Error(`Invalid attempt outcome in database: ${value}`);
-}
-
-function metadataFromQuestionMeta(meta: QuestionMeta | undefined): Partial<Attempt> {
-  return meta ? optionalMetadata({ difficulty: meta.difficulty, domain: meta.primary_class_cd, domain_desc: meta.primary_class_cd_desc, skill: meta.skill_cd, skill_desc: meta.skill_desc }) : {};
 }
 
 function optionalMetadata(metadata: Pick<Attempt, "difficulty" | "domain" | "domain_desc" | "skill" | "skill_desc">): Partial<Attempt> {

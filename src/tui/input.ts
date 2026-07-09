@@ -1,5 +1,4 @@
-import { getPracticeQuestion, getQuestionByShortId } from "../question-bank.ts";
-import { appendAttemptEvent, recordAttempt, saveAttempts, saveFocus, saveSummary } from "../state.ts";
+import * as sat from "../sat/index.ts";
 import { focusGrid, moveFocusGridPosition, normalizeFocusGridPosition, toggleFocusGridRow } from "./focus-grid.ts";
 import {
   answerKeys,
@@ -114,19 +113,21 @@ export async function handleKey(state: AppState, name: string, data?: KeyData): 
       ensureSelectedAnswerVisible(state);
     } else if (name === "ENTER") {
       const answer = choices[state.selected];
-      const correct = state.question?.detail.correct_answer.includes(answer) ?? false;
-      const elapsedSeconds = elapsedQuestionSeconds(state);
-      state.lastAnswer = answer;
-      state.lastCorrect = correct;
-      pauseTimer(state);
-      if (state.question) {
-        const answeredAt = new Date();
-        recordAttempt(state.attempts, state.question.meta.questionId, correct, elapsedSeconds, answeredAt, state.question.meta);
-        await appendAttemptEvent(state.question.meta, correct, elapsedSeconds, answeredAt);
-        await saveAttempts(state.attempts);
-        await saveSummary(state.attempts);
-      }
-      state.view = "review";
+        const elapsedSeconds = elapsedQuestionSeconds(state);
+        pauseTimer(state);
+        if (state.question) {
+          const answeredAt = new Date();
+          const result = await sat.answerQuestion({
+            attempts: state.attempts,
+            question: state.question,
+            answer,
+            elapsedSeconds,
+            answeredAt,
+          });
+          state.lastAnswer = result.answer;
+          state.lastCorrect = result.correct;
+        }
+        state.view = "review";
       state.activePane = "answers";
       state.answerScroll = 0;
     }
@@ -147,7 +148,7 @@ export async function handleKey(state: AppState, name: string, data?: KeyData): 
     } else if (name === "ENTER" && attempts[state.historyIndex]) {
       state.view = "loading";
       resetPaneScroll(state);
-      state.detailQuestion = await getQuestionByShortId(attempts[state.historyIndex].question_id);
+      state.detailQuestion = await sat.findQuestion(attempts[state.historyIndex].question_id);
       state.view = "detail";
     }
     return;
@@ -198,7 +199,7 @@ async function handleFocusKey(state: AppState, name: string, data?: KeyData): Pr
       state.focus = focus;
       state.nextQuestion = undefined;
       state.question = undefined;
-      await saveFocus(state.focus);
+      await sat.saveFocus(state.focus);
     }
     return;
   }
@@ -244,7 +245,7 @@ async function takeNextQuestion(state: AppState) {
     }
   }
 
-  return getPracticeQuestion(questionExclusions(state), state.focus);
+  return sat.nextQuestion({ attemptedIds: questionExclusions(state), focus: state.focus });
 }
 
 async function takeReviewQuestion(state: AppState): Promise<PracticeQuestion | undefined> {
@@ -254,7 +255,7 @@ async function takeReviewQuestion(state: AppState): Promise<PracticeQuestion | u
       continue;
     }
 
-    const question = await getQuestionByShortId(id);
+    const question = await sat.findQuestion(id);
     if (question) {
       return question;
     }
@@ -268,7 +269,7 @@ function cacheNextQuestion(state: AppState): void {
     return;
   }
 
-  state.nextQuestion = getPracticeQuestion(questionExclusions(state), state.focus).catch(() => undefined);
+  state.nextQuestion = sat.nextQuestion({ attemptedIds: questionExclusions(state), focus: state.focus }).catch(() => undefined);
 }
 
 function questionExclusions(state: AppState): string[] {

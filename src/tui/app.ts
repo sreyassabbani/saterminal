@@ -1,11 +1,11 @@
 import { defaultFocus } from "../focus.ts";
 import { questionBankStatus } from "../question-bank.ts";
+import { reviewQuestionIds } from "../core/review.ts";
 import { ensureStateFiles, loadAttempts, loadFocus, stateDirExists } from "../state.ts";
 import { handleKey, loadNextQuestion } from "./input.ts";
 import { createFrameRenderer, render } from "./render.ts";
 import { term } from "./kit.ts";
 import type { AppState, KeyData } from "./types.ts";
-import type { Attempt } from "../types.ts";
 
 export type TuiOptions = {
   mode?: "practice" | "review";
@@ -126,15 +126,4 @@ export async function runTui(options: TuiOptions = {}): Promise<void> {
       render(renderer, state);
     }
   });
-}
-
-function reviewQuestionIds(attempts: Map<string, Attempt>): string[] {
-  return [...attempts.values()]
-    .filter((attempt) => attempt.outcome === "incorrect" || attempt.outcome === "corrected")
-    .sort((a, b) => reviewPriority(a) - reviewPriority(b) || a.updated_at.localeCompare(b.updated_at))
-    .map((attempt) => attempt.question_id);
-}
-
-function reviewPriority(attempt: Attempt): number {
-  return attempt.outcome === "incorrect" ? 0 : 1;
 }

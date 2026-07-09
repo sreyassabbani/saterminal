@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { Database } from "bun:sqlite";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -16,6 +17,7 @@ import {
   resolveStateDir,
   saveAttempts,
   saveFocus,
+  stateSchemaVersion,
   stateDirExists,
 } from "../src/state.ts";
 import type { QuestionMeta } from "../src/types.ts";
@@ -78,6 +80,23 @@ describe("state", () => {
 
       await saveFocus({ difficulties: ["H"], domains: ["SEC"], skills: ["BOU", "FSS"] }, db);
       expect(await loadFocus(db)).toEqual({ difficulties: ["H"], domains: ["SEC"], skills: ["BOU", "FSS"] });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("records sqlite schema version after migration", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "saterminal-"));
+    const db = join(dir, "sat.db");
+    try {
+      await ensureStateFiles(db);
+      const sqlite = new Database(db);
+      try {
+        const row = sqlite.query("pragma user_version").get() as { user_version: number };
+        expect(row.user_version).toBe(stateSchemaVersion);
+      } finally {
+        sqlite.close();
+      }
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
