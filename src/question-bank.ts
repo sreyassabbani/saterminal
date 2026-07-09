@@ -1,11 +1,11 @@
 import { mkdir, rename, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { stateDir } from "./state.ts";
+import { cacheDir } from "./state.ts";
 import type { Difficulty, Focus, PracticeQuestion, QuestionMeta, Skill } from "./types.ts";
 
 export const questionBankVersion = 1;
-export const questionBankPath = join(stateDir, "cache", "question-bank.json");
+export const questionBankPath = join(cacheDir, "question-bank.json");
 export const bundledQuestionBankPath = fileURLToPath(new URL("../data/question-bank.json.zst", import.meta.url));
 
 export type QuestionBank = {
