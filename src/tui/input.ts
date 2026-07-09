@@ -1,38 +1,15 @@
 import * as sat from "../sat/index.ts";
-import { focusGrid, moveFocusGridPosition, normalizeFocusGridPosition, toggleFocusGridRow } from "./focus-grid.ts";
-import {
-  answerKeys,
-  openExternalQuestion,
-  questionNeedsExternalDisplay,
-  questionRows,
-} from "./question.ts";
+import { answerKeys, openExternalQuestion, questionNeedsExternalDisplay } from "./question.ts";
 import { historyRows } from "./history.ts";
-import { elapsedQuestionSeconds, formatElapsed, pauseTimer, resumeTimer, toggleTimer } from "./timer.ts";
-import { paneLayout, paneViewportHeight } from "./layout.ts";
-import { detailPaneRows, practiceAnswerPaneRows, reviewPaneRows } from "./pane-content.ts";
-import { alternatePane, ensureRangeVisible, scrollBy, scrollPage, scrollToEdge, type PaneViewport } from "./viewport.ts";
+import { elapsedQuestionSeconds, pauseTimer, resumeTimer, toggleTimer } from "./timer.ts";
 import type { AppState, KeyData } from "./types.ts";
-import type { PracticeQuestion } from "../types.ts";
+import { handleFocusKey } from "./input/focus.ts";
+import { isPauseKey } from "./input/keys.ts";
+import { ensureSelectedAnswerVisible, handlePaneKey, isScrollablePaneView, resetPaneScroll } from "./input/pane.ts";
+import { loadNextQuestion, skipQuestion } from "./input/question-flow.ts";
 
-export function isPauseKey(name: string, data?: KeyData): boolean {
-  if (name === " " || name.toUpperCase() === "SPACE") {
-    return true;
-  }
-
-  if (data?.isCharacter && data.codepoint === 32) {
-    return true;
-  }
-
-  if (data?.code === " ") {
-    return true;
-  }
-
-  if (Buffer.isBuffer(data?.code) && data.code.toString("utf8") === " ") {
-    return true;
-  }
-
-  return false;
-}
+export { isPauseKey } from "./input/keys.ts";
+export { loadNextQuestion } from "./input/question-flow.ts";
 
 export async function handleKey(state: AppState, name: string, data?: KeyData): Promise<void> {
   if (state.view === "loading") {
@@ -91,46 +68,7 @@ export async function handleKey(state: AppState, name: string, data?: KeyData): 
   }
 
   if (state.view === "practice") {
-    if (isPauseKey(name, data)) {
-      toggleTimer(state);
-      return;
-    }
-
-    if (state.question && questionNeedsExternalDisplay(state.question.detail)) {
-      if (name === "n" || name === "x" || name === "ENTER") {
-        skipQuestion(state);
-        await loadNextQuestion(state);
-      } else if (name === "o") {
-        openExternalQuestion(state.question);
-      }
-      return;
-    }
-
-    const choices = answerKeys(state.question);
-    const directChoice = choices.findIndex((choice) => choice.toLowerCase() === name.toLowerCase());
-    if (directChoice >= 0) {
-      state.selected = directChoice;
-      ensureSelectedAnswerVisible(state);
-    } else if (name === "ENTER") {
-      const answer = choices[state.selected];
-        const elapsedSeconds = elapsedQuestionSeconds(state);
-        pauseTimer(state);
-        if (state.question) {
-          const answeredAt = new Date();
-          const result = await sat.answerQuestion({
-            attempts: state.attempts,
-            question: state.question,
-            answer,
-            elapsedSeconds,
-            answeredAt,
-          });
-          state.lastAnswer = result.answer;
-          state.lastCorrect = result.correct;
-        }
-        state.view = "review";
-      state.activePane = "answers";
-      state.answerScroll = 0;
-    }
+    await handlePracticeKey(state, name, data);
     return;
   }
 
@@ -140,17 +78,7 @@ export async function handleKey(state: AppState, name: string, data?: KeyData): 
   }
 
   if (state.view === "history") {
-    const attempts = historyRows(state);
-    if (name === "UP" || name === "k") {
-      state.historyIndex = Math.max(0, state.historyIndex - 1);
-    } else if (name === "DOWN" || name === "j") {
-      state.historyIndex = Math.min(attempts.length - 1, state.historyIndex + 1);
-    } else if (name === "ENTER" && attempts[state.historyIndex]) {
-      state.view = "loading";
-      resetPaneScroll(state);
-      state.detailQuestion = await sat.findQuestion(attempts[state.historyIndex].question_id);
-      state.view = "detail";
-    }
+    await handleHistoryKey(state, name);
     return;
   }
 
@@ -159,285 +87,63 @@ export async function handleKey(state: AppState, name: string, data?: KeyData): 
   }
 }
 
-async function handleFocusKey(state: AppState, name: string, data?: KeyData): Promise<void> {
-  const columns = focusGrid(state.focus);
-  const position = normalizeFocusGridPosition(columns, { column: state.focusColumn, row: state.focusRow });
-  state.focusColumn = position.column;
-  state.focusRow = position.row;
-
-  if (name === "UP" || name === "k") {
-    const next = moveFocusGridPosition(columns, position, "up");
-    state.focusColumn = next.column;
-    state.focusRow = next.row;
-    return;
-  }
-
-  if (name === "DOWN" || name === "j") {
-    const next = moveFocusGridPosition(columns, position, "down");
-    state.focusColumn = next.column;
-    state.focusRow = next.row;
-    return;
-  }
-
-  if (name === "TAB") {
-    const next = moveFocusGridPosition(columns, position, "next");
-    state.focusColumn = next.column;
-    state.focusRow = next.row;
-    return;
-  }
-
-  if (name === "SHIFT_TAB") {
-    const next = moveFocusGridPosition(columns, position, "previous");
-    state.focusColumn = next.column;
-    state.focusRow = next.row;
-    return;
-  }
-
+async function handlePracticeKey(state: AppState, name: string, data?: KeyData): Promise<void> {
   if (isPauseKey(name, data)) {
-    const focus = toggleFocusGridRow(state.focus, position);
-    if (focus !== state.focus) {
-      state.focus = focus;
-      state.nextQuestion = undefined;
-      state.question = undefined;
-      await sat.saveFocus(state.focus);
+    toggleTimer(state);
+    return;
+  }
+
+  if (state.question && questionNeedsExternalDisplay(state.question.detail)) {
+    if (name === "n" || name === "x" || name === "ENTER") {
+      skipQuestion(state);
+      await loadNextQuestion(state);
+    } else if (name === "o") {
+      openExternalQuestion(state.question);
     }
     return;
   }
 
-  if (name === "ENTER") {
-    state.nextQuestion = undefined;
-    state.question = undefined;
-    await loadNextQuestion(state);
-  }
-}
-
-export async function loadNextQuestion(state: AppState): Promise<void> {
-  state.view = "loading";
-  state.question = await takeNextQuestion(state);
-  if (!state.question) {
-    state.notice = "Review queue complete.";
-    state.view = "history";
-    return;
-  }
-  state.selected = 0;
-  resetPaneScroll(state);
-  state.elapsedMs = 0;
-  state.timerStartedAt = Date.now();
-  state.timerPaused = false;
-  state.lastAnswer = undefined;
-  state.lastCorrect = undefined;
-  state.view = "practice";
-  cacheNextQuestion(state);
-}
-
-async function takeNextQuestion(state: AppState) {
-  if (state.reviewMode) {
-    return takeReviewQuestion(state);
-  }
-
-  const cached = state.nextQuestion;
-  state.nextQuestion = undefined;
-
-  if (cached) {
-    const question = await cached;
-    if (question) {
-      return question;
-    }
-  }
-
-  return sat.nextQuestion({ attemptedIds: questionExclusions(state), focus: state.focus });
-}
-
-async function takeReviewQuestion(state: AppState): Promise<PracticeQuestion | undefined> {
-  while (state.reviewQuestionIds && state.reviewQuestionIds.length > 0) {
-    const id = state.reviewQuestionIds.shift();
-    if (!id) {
-      continue;
-    }
-
-    const question = await sat.findQuestion(id);
-    if (question) {
-      return question;
-    }
-  }
-
-  return undefined;
-}
-
-function cacheNextQuestion(state: AppState): void {
-  if (state.reviewMode) {
-    return;
-  }
-
-  state.nextQuestion = sat.nextQuestion({ attemptedIds: questionExclusions(state), focus: state.focus }).catch(() => undefined);
-}
-
-function questionExclusions(state: AppState): string[] {
-  return [
-    ...state.attempts.keys(),
-    ...state.skippedIds,
-    ...(state.question ? [state.question.meta.questionId] : []),
-  ];
-}
-
-function skipQuestion(state: AppState): void {
-  if (state.question) {
-    state.skippedIds.add(state.question.meta.questionId);
-  }
-}
-
-function handlePaneKey(state: AppState, name: string): boolean {
-  if (name === "TAB" || name === "SHIFT_TAB") {
-    state.activePane = alternatePane(state.activePane);
-    return true;
-  }
-
-  if (state.view === "practice" && state.activePane === "answers" && (name === "UP" || name === "k" || name === "DOWN" || name === "j")) {
-    moveSelectedAnswer(state, name === "UP" || name === "k" ? -1 : 1);
-    return true;
-  }
-
-  if (name === "UP" || name === "k") {
-    scrollActivePaneBy(state, -1);
-    return true;
-  }
-
-  if (name === "DOWN" || name === "j") {
-    scrollActivePaneBy(state, 1);
-    return true;
-  }
-
-  if (name === "PAGE_UP" || name === "[") {
-    scrollActivePanePage(state, -1);
-    return true;
-  }
-
-  if (name === "PAGE_DOWN" || name === "]") {
-    scrollActivePanePage(state, 1);
-    return true;
-  }
-
-  if (name === "HOME" || name === "g") {
-    scrollActivePaneToEdge(state, "top");
-    return true;
-  }
-
-  if (name === "END" || name === "G") {
-    scrollActivePaneToEdge(state, "bottom");
-    return true;
-  }
-
-  return false;
-}
-
-function moveSelectedAnswer(state: AppState, delta: number): void {
   const choices = answerKeys(state.question);
-  if (choices.length === 0) {
+  const directChoice = choices.findIndex((choice) => choice.toLowerCase() === name.toLowerCase());
+  if (directChoice >= 0) {
+    state.selected = directChoice;
+    ensureSelectedAnswerVisible(state);
     return;
   }
 
-  state.selected = Math.max(0, Math.min(choices.length - 1, state.selected + delta));
-  ensureSelectedAnswerVisible(state);
-}
-
-function scrollActivePaneBy(state: AppState, delta: number): void {
-  setActivePaneScroll(state, scrollBy(activePaneViewport(state), delta));
-}
-
-function scrollActivePanePage(state: AppState, direction: 1 | -1): void {
-  setActivePaneScroll(state, scrollPage(activePaneViewport(state), direction));
-}
-
-function scrollActivePaneToEdge(state: AppState, edge: "top" | "bottom"): void {
-  setActivePaneScroll(state, scrollToEdge(activePaneViewport(state), edge));
-}
-
-function activePaneViewport(state: AppState): PaneViewport {
-  const panes = paneLayout();
-  const height = paneViewportHeight();
-
-  if (state.activePane === "question") {
-    const question = currentPaneQuestion(state);
-    return {
-      scroll: state.questionScroll,
-      height,
-      contentRows: question ? questionRows(question.detail, panes.leftWidth).length : 0,
-    };
-  }
-
-  return {
-    scroll: state.answerScroll,
-    height,
-    contentRows: rightPaneRows(state, panes.rightWidth).length,
-  };
-}
-
-function setActivePaneScroll(state: AppState, scroll: number): void {
-  if (state.activePane === "question") {
-    state.questionScroll = scroll;
-  } else {
-    state.answerScroll = scroll;
-  }
-}
-
-function ensureSelectedAnswerVisible(state: AppState): void {
-  if (!state.question) {
+  if (name !== "ENTER") {
     return;
   }
 
-  const panes = paneLayout();
-  const content = practiceAnswerPaneRows(state.question, state.selected, panes.rightWidth);
-  const choice = content.choices[state.selected];
-  if (!choice) {
-    return;
+  const answer = choices[state.selected];
+  const elapsedSeconds = elapsedQuestionSeconds(state);
+  pauseTimer(state);
+  if (state.question) {
+    const result = await sat.answerQuestion({
+      attempts: state.attempts,
+      question: state.question,
+      answer,
+      elapsedSeconds,
+      answeredAt: new Date(),
+    });
+    state.lastAnswer = result.answer;
+    state.lastCorrect = result.correct;
   }
-
-  state.answerScroll = ensureRangeVisible(
-    {
-      scroll: state.answerScroll,
-      height: paneViewportHeight(),
-      contentRows: content.rows.length,
-    },
-    choice.start,
-    choice.end,
-  );
-}
-
-function resetPaneScroll(state: AppState): void {
-  state.questionScroll = 0;
-  state.answerScroll = 0;
+  state.view = "review";
   state.activePane = "answers";
+  state.answerScroll = 0;
 }
 
-function currentPaneQuestion(state: AppState): PracticeQuestion | undefined {
-  return state.view === "detail" ? state.detailQuestion : state.question;
-}
-
-function isScrollablePaneView(state: AppState): boolean {
-  if (state.view !== "practice" && state.view !== "review" && state.view !== "detail") {
-    return false;
+async function handleHistoryKey(state: AppState, name: string): Promise<void> {
+  const attempts = historyRows(state);
+  if (name === "UP" || name === "k") {
+    state.historyIndex = Math.max(0, state.historyIndex - 1);
+  } else if (name === "DOWN" || name === "j") {
+    state.historyIndex = Math.min(attempts.length - 1, state.historyIndex + 1);
+  } else if (name === "ENTER" && attempts[state.historyIndex]) {
+    state.view = "loading";
+    resetPaneScroll(state);
+    state.detailQuestion = await sat.findQuestion(attempts[state.historyIndex].question_id);
+    state.view = "detail";
   }
-
-  const question = currentPaneQuestion(state);
-  return Boolean(question && !questionNeedsExternalDisplay(question.detail));
-}
-
-function rightPaneRows(state: AppState, width: number) {
-  if (state.view === "practice" && state.question) {
-    return practiceAnswerPaneRows(state.question, state.selected, width).rows;
-  }
-
-  if (state.view === "review" && state.question) {
-    return reviewPaneRows(state.question, {
-      lastAnswer: state.lastAnswer,
-      lastCorrect: state.lastCorrect,
-      elapsed: formatElapsed(elapsedQuestionSeconds(state)),
-    }, width);
-  }
-
-  if (state.view === "detail" && state.detailQuestion) {
-    return detailPaneRows(state.detailQuestion, state.attempts.get(state.detailQuestion.meta.questionId), width);
-  }
-
-  return [];
 }
