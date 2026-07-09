@@ -1,6 +1,5 @@
 import he from "he";
 import { HTMLElement, NodeType, parse, type Node } from "node-html-parser";
-import wrap from "word-wrap";
 
 export type TextStyle = {
   bold?: boolean;
@@ -97,12 +96,7 @@ export function decodeEntities(value: string): string {
 }
 
 export function wrapText(value: string, width: number): string[] {
-  return wrap(value, {
-    width: Math.max(1, width),
-    trim: true,
-    indent: "",
-    newline: "\n",
-  }).split("\n");
+  return Bun.wrapAnsi(value, Math.max(1, width), { hard: false }).split("\n").map((line) => line.trim());
 }
 
 function walkNodes(node: Node, style: TextStyle, segments: TextSegment[]): void {
