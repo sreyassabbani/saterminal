@@ -2,7 +2,7 @@ import { loadAttemptEvents, loadAttempts } from "../../database/progress-reposit
 import { activity } from "../../progress/activity.ts";
 import { progressStatistics } from "../../progress/statistics.ts";
 import { Report } from "../components/report.tsx";
-import { formatStats } from "../format-reports.ts";
+import { formatStats } from "../reports/stats.ts";
 import { outputMode, reportColor, reportOptions, type ReportOptions } from "../report-options.ts";
 
 export const description = "Show progress, streak, and recent activity";

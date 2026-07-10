@@ -1,6 +1,6 @@
 import { loadFocus } from "../../database/focus-repository.ts";
 import { Report } from "../components/report.tsx";
-import { formatFocus } from "../format-reports.ts";
+import { formatFocus } from "../reports/focus.ts";
 import { outputMode, reportColor, reportOptions, type ReportOptions } from "../report-options.ts";
 
 export const description = "Show the current question focus";
