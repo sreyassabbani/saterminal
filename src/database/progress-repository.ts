@@ -4,7 +4,7 @@ import type { AnswerRecord, Attempt, AttemptEvent, Outcome } from "../progress/a
 import { databasePath } from "../local-data/paths.ts";
 import { openDatabase } from "./index.ts";
 
-export async function loadAttempts(path = databasePath): Promise<Map<string, Attempt>> {
+export function loadAttempts(path = databasePath): Map<string, Attempt> {
   return usingDatabase(path, (database) => {
     const rows = database.query(`select question_id, outcome, answered_at, duration_seconds, difficulty, domain, skill from attempts order by answered_at`).all() as AttemptRow[];
     return new Map(rows.map((row) => {
@@ -14,7 +14,7 @@ export async function loadAttempts(path = databasePath): Promise<Map<string, Att
   });
 }
 
-export async function loadAttemptEvents(path = databasePath): Promise<AttemptEvent[]> {
+export function loadAttemptEvents(path = databasePath): AttemptEvent[] {
   return usingDatabase(path, (database) => {
     const rows = database.query(`select question_id, correct, answered_at, duration_seconds, difficulty, domain, skill from attempt_events order by answered_at, id`).all() as EventRow[];
     return rows.map((row) => ({
@@ -29,8 +29,8 @@ export async function loadAttemptEvents(path = databasePath): Promise<AttemptEve
   });
 }
 
-export async function recordAnswer(record: AnswerRecord, path = databasePath): Promise<void> {
-  await usingDatabase(path, (database) => {
+export function recordAnswer(record: AnswerRecord, path = databasePath): void {
+  usingDatabase(path, (database) => {
     const transaction = database.transaction(() => {
       const { event, attempt } = record;
       database.query(`insert into attempt_events (question_id, correct, answered_at, duration_seconds, difficulty, domain, skill) values (?, ?, ?, ?, ?, ?, ?)`)
@@ -80,8 +80,8 @@ function readOutcome(value: string): Outcome {
   throw new Error(`Invalid attempt outcome in database: ${value}`);
 }
 
-async function usingDatabase<T>(path: string, work: (database: Database) => T): Promise<T> {
-  const database = await openDatabase(path);
+function usingDatabase<T>(path: string, work: (database: Database) => T): T {
+  const database = openDatabase(path);
   try {
     return work(database);
   } finally {

@@ -3,29 +3,32 @@
   "version": "0.4.0",
   "type": "module",
   "bin": {
-    "sat": "src/main.ts"
+    "sat": "src/cli/index.ts"
   },
   "files": [
     "data",
     "src"
   ],
   "scripts": {
-    "dev": "bun run src/main.ts",
-    "start": "bun run src/main.ts",
+    "dev": "bun run src/cli/index.ts",
+    "start": "bun run src/cli/index.ts",
     "update-bank": "bun run scripts/update-question-bank.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "commander": "^15.0.0",
-    "drizzle-orm": "^0.45.2",
+    "@inkjs/ui": "2.0.0",
     "he": "^1.2.0",
+    "ink": "6.8.0",
     "node-html-parser": "^9.0.0",
-    "terminal-kit": "^3.1.3"
+    "pastel": "4.0.1",
+    "react": "19.2.0",
+    "zod": "4"
   },
   "devDependencies": {
     "@types/bun": "^1.3.14",
     "@types/he": "^1.2.3",
+    "@types/react": "19.2.0",
     "p-limit": "^7.3.0",
     "typescript": "^7.0.2"
   }
