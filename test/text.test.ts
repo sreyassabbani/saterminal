@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { hasHtmlTable, htmlToText, parseHtmlSegments, wrapSegments, wrapText } from "../src/text.ts";
+import { hasHtmlTable, htmlToText, parseHtmlSegments } from "../src/text/html.ts";
+import { wrapSegments, wrapText } from "../src/text/wrap.ts";
 
 describe("text", () => {
   test("converts the API html subset into terminal text", () => {

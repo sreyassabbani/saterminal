@@ -1,18 +1,45 @@
 import { describe, expect, test } from "bun:test";
-import { progressBarText } from "../src/progress.ts";
+import { activity } from "../src/progress/activity.ts";
+import { createAnswerRecord, nextOutcome, type Attempt } from "../src/progress/attempt.ts";
+import { history } from "../src/progress/history.ts";
+import { reviewQueue } from "../src/progress/review-queue.ts";
+import { progressStatistics } from "../src/progress/statistics.ts";
+import { weaknesses } from "../src/progress/weaknesses.ts";
+import type { Question } from "../src/questions/question.ts";
+
+const question: Question = {
+  id: "q1", sourceId: "upstream-q1", difficulty: "M", domain: "CAS", skill: "WIC",
+  prompt: "Choose.", choices: [{ key: "A", content: "No" }, { key: "B", content: "Yes" }], correctAnswers: ["B"],
+};
 
 describe("progress", () => {
-  test("renders a block progress bar with empty cells", () => {
-    expect(progressBarText(0.5, 8)).toBe("████    ");
+  test("records correction as the durable outcome while preserving the answer event", () => {
+    const previous: Attempt = { questionId: "q1", outcome: "incorrect", answeredAt: "2026-01-01T00:00:00.000Z", durationSeconds: 30 };
+    const record = createAnswerRecord(previous, question, "B", 12, new Date("2026-01-02T00:00:00.000Z"));
+
+    expect(record).toMatchObject({ correct: true, attempt: { outcome: "corrected" }, event: { correct: true, skill: "WIC" } });
+    expect(nextOutcome("corrected", false)).toBe("corrected");
   });
 
-  test("uses partial block cells for fractional progress", () => {
-    expect(progressBarText(0.3125, 8)).toBe("██▌     ");
+  test("builds reports from attempts without owning persistence or UI", () => {
+    const attempts: Attempt[] = [
+      { questionId: "old", outcome: "incorrect", answeredAt: "2026-01-01T12:00:00.000Z", durationSeconds: 40, difficulty: "M", domain: "CAS", skill: "WIC" },
+      { questionId: "fixed", outcome: "corrected", answeredAt: "2026-01-09T12:00:00.000Z", durationSeconds: 20, difficulty: "M", domain: "CAS", skill: "WIC" },
+      { questionId: "good", outcome: "correct", answeredAt: "2026-01-10T12:00:00.000Z", durationSeconds: 10, difficulty: "E", domain: "SEC", skill: "BOU" },
+    ];
+
+    expect(progressStatistics(attempts)).toMatchObject({ answered: 3, mastered: 2, incorrect: 1, accuracy: 2 / 3 });
+    expect(history(attempts, { since: "7d" }, new Date("2026-01-10T12:00:00.000Z")).map((row) => row.questionId)).toEqual(["good", "fixed"]);
+    expect(reviewQueue(attempts)).toEqual(["old", "fixed"]);
+    expect(weaknesses(attempts)[0]).toMatchObject({ skill: "WIC", missed: 1, total: 2 });
   });
 
-  test("clamps invalid ratios", () => {
-    expect(progressBarText(-1, 4)).toBe("    ");
-    expect(progressBarText(2, 4)).toBe("████");
-    expect(progressBarText(Number.NaN, 4)).toBe("    ");
+  test("counts consecutive local calendar days", () => {
+    const events = ["2026-01-08T12:00:00", "2026-01-09T12:00:00"].map((answeredAt, index) => ({
+      questionId: `q${index}`, correct: true, answeredAt, durationSeconds: 10,
+      difficulty: "M" as const, domain: "CAS" as const, skill: "WIC" as const,
+    }));
+
+    expect(activity(events, new Date("2026-01-10T12:00:00"), 7)).toMatchObject({ streak: 2, activeDays: 2, todayCount: 0 });
   });
 });
