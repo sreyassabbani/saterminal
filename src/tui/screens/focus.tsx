@@ -5,13 +5,18 @@ import { selectedDomains, toggleDifficulty, toggleDomain, toggleSkill } from "..
 import type { Difficulty, DomainCode, SkillCode } from "../../questions/question.ts";
 import { difficulties, difficultyLabels, domains, domainLabels, skillLabels, skillsByDomain } from "../../questions/taxonomy.ts";
 import { Screen } from "../components/chrome.tsx";
+import { useTerminalSize } from "../hooks/use-terminal-size.ts";
 
 type Column = { id: "difficulty" | DomainCode; rows: ({ kind: "difficulty"; value: Difficulty } | { kind: "domain"; value: DomainCode } | { kind: "skill"; value: SkillCode })[] };
 
 export function FocusScreen({ focus, notice, onChange, onStart }: { focus: Focus; notice?: string; onChange: (focus: Focus) => void; onStart: () => void }) {
+  const { width } = useTerminalSize();
   const columns = focusColumns();
   const [position, setPosition] = useState({ column: 0, row: 0 });
   const normalized = { column: Math.min(position.column, columns.length - 1), row: Math.min(position.row, columns[Math.min(position.column, columns.length - 1)].rows.length - 1) };
+  const visibleColumns = width < 72
+    ? [{ column: columns[normalized.column], columnIndex: normalized.column }]
+    : columns.map((column, columnIndex) => ({ column, columnIndex }));
   useInput((input, key) => {
     if (key.upArrow || input === "k") setPosition((current) => ({ ...current, row: Math.max(0, current.row - 1) }));
     else if (key.downArrow || input === "j") setPosition((current) => ({ ...current, row: Math.min(columns[current.column].rows.length - 1, current.row + 1) }));
@@ -23,9 +28,9 @@ export function FocusScreen({ focus, notice, onChange, onStart }: { focus: Focus
   return (
     <Screen title="focus" detail={`${focus.skills.length} skills · ${focus.difficulties.join(",")} · ${selectedDomains(focus).length} domains`} footer="j/k move · tab/←/→ group · space toggle · enter start · q quit">
       {notice ? <Text color="yellow">{notice}</Text> : null}
-      <Box gap={3} flexWrap="wrap">
-        {columns.map((column, columnIndex) => (
-          <Box key={column.id} flexDirection="column" width={column.id === "difficulty" ? 20 : 28}>
+      <Box columnGap={3} rowGap={0} flexWrap="wrap">
+        {visibleColumns.map(({ column, columnIndex }) => (
+          <Box key={column.id} flexDirection="column" width={width < 72 ? Math.max(20, width - 2) : 36}>
             <Text bold color="cyan">{column.id === "difficulty" ? "Difficulty" : `${column.id}  ${domainLabels[column.id]}`}</Text>
             {column.rows.map((row, rowIndex) => {
               const active = normalized.column === columnIndex && normalized.row === rowIndex;
