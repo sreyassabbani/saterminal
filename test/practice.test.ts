@@ -14,7 +14,11 @@ describe("study queues", () => {
       durationSeconds: 30,
     };
 
-    const result = await takeNextQuestion(questionsToReview([attempt]), new Map([[question.id, attempt]]), defaultFocus);
+    const result = await takeNextQuestion(
+      questionsToReview([attempt], [], { minimumDays: 0, minimumAnswersAfter: 0 }),
+      new Map([[question.id, attempt]]),
+      defaultFocus,
+    );
 
     expect(result.question?.id).toBe(question.id);
     expect(result.queue).toEqual({ kind: "review", pendingIds: [] });

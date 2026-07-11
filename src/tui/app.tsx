@@ -3,15 +3,16 @@ import { Box, Text, useApp, useInput, useStdout } from "ink";
 import { useCallback, useEffect, useState } from "react";
 import { dataDirectoryExists, ensureDatabase } from "../database/index.ts";
 import { loadFocus, saveFocus } from "../database/focus-repository.ts";
-import { loadAttempts } from "../database/progress-repository.ts";
+import { loadAttemptEvents, loadAttempts } from "../database/progress-repository.ts";
 import { dataDirectory, displayPath } from "../local-data/paths.ts";
 import { answerQuestion } from "../practice/answer-question.ts";
 import { emptyQueueMessage, questionsToReview, skipQuestion, takeNextQuestion, unansweredQuestions, type QuestionQueue } from "../practice/question-queue.ts";
+import { loadPreferences, type ReviewPreferences } from "../preferences/index.ts";
 import type { Focus } from "../questions/focus.ts";
 import { defaultFocus } from "../questions/focus.ts";
 import { findQuestion, loadQuestionBank, questionBankStatus } from "../questions/local-bank.ts";
 import type { Question } from "../questions/question.ts";
-import type { AnswerRecord, Attempt } from "../progress/attempt.ts";
+import type { AnswerRecord, Attempt, AttemptEvent } from "../progress/attempt.ts";
 import { DetailScreen } from "./screens/detail.tsx";
 import { FocusScreen } from "./screens/focus.tsx";
 import { HistoryScreen } from "./screens/history.tsx";
@@ -22,10 +23,19 @@ import { SummaryScreen } from "./screens/summary.tsx";
 import { useTerminalSize } from "./hooks/use-terminal-size.ts";
 
 type View = "setup" | "loading" | "focus" | "practice" | "result" | "history" | "summary" | "detail" | "error";
-type SessionEntry = (attempts: ReadonlyMap<string, Attempt>) => { queue: QuestionQueue; destination: "focus" | "question" };
+type StudyRecords = {
+  attempts: ReadonlyMap<string, Attempt>;
+  events: readonly AttemptEvent[];
+  reviewPreferences: ReviewPreferences;
+};
+type SessionEntry = (records: StudyRecords) => { queue: QuestionQueue; destination: "focus" | "question"; emptyNotice?: string };
 
 const choosePracticeFocus: SessionEntry = () => ({ queue: unansweredQuestions(), destination: "focus" });
-const beginReview: SessionEntry = (attempts) => ({ queue: questionsToReview(attempts.values()), destination: "question" });
+const beginReview: SessionEntry = ({ attempts, events, reviewPreferences }) => ({
+  queue: questionsToReview(attempts.values(), events, reviewPreferences),
+  destination: "question",
+  emptyNotice: `No questions are ready. Review requires ${reviewPreferences.minimumDays} days and ${reviewPreferences.minimumAnswersAfter} later answers.`,
+});
 
 export function PracticeSession() {
   return <StudyShell enterSession={choosePracticeFocus} />;
@@ -73,17 +83,19 @@ function StudyShell({ enterSession }: { enterSession: SessionEntry }) {
     try {
       ensureDatabase();
       const currentAttempts = loadAttempts();
+      const currentEvents = loadAttemptEvents();
       const currentFocus = loadFocus();
+      const preferences = loadPreferences();
       await loadQuestionBank();
       const status = await questionBankStatus();
       setAttempts(currentAttempts);
       setFocus(currentFocus);
       setNotice(`${status.questions ?? 0} questions available offline.`);
-      const entry = enterSession(currentAttempts);
+      const entry = enterSession({ attempts: currentAttempts, events: currentEvents, reviewPreferences: preferences.review });
       setQueue(entry.queue);
       if (entry.destination === "question") {
         if (entry.queue.kind === "review" && !entry.queue.pendingIds.length) {
-          setNotice("No review queue yet. Miss or correct a question first.");
+          setNotice(entry.emptyNotice ?? "No questions are ready for review.");
           setView("history");
           return;
         }

@@ -1,5 +1,5 @@
-import type { Attempt } from "../progress/attempt.ts";
-import { reviewQueue } from "../progress/review-queue.ts";
+import type { Attempt, AttemptEvent } from "../progress/attempt.ts";
+import { reviewQueue, type ReviewRequirements } from "../progress/review-queue.ts";
 import type { Focus } from "../questions/focus.ts";
 import { findQuestion, nextQuestion } from "../questions/local-bank.ts";
 import type { Question } from "../questions/question.ts";
@@ -17,8 +17,13 @@ export function unansweredQuestions(): QuestionQueue {
   return { kind: "unanswered", skippedIds: new Set() };
 }
 
-export function questionsToReview(attempts: Iterable<Attempt>): QuestionQueue {
-  return { kind: "review", pendingIds: reviewQueue(attempts) };
+export function questionsToReview(
+  attempts: Iterable<Attempt>,
+  events: Iterable<AttemptEvent>,
+  requirements: ReviewRequirements,
+  now = new Date(),
+): QuestionQueue {
+  return { kind: "review", pendingIds: reviewQueue(attempts, events, requirements, now) };
 }
 
 export function skipQuestion(queue: QuestionQueue, questionId: string): QuestionQueue {

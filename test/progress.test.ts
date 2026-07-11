@@ -30,8 +30,32 @@ describe("progress", () => {
 
     expect(progressStatistics(attempts)).toMatchObject({ answered: 3, mastered: 2, incorrect: 1, accuracy: 2 / 3 });
     expect(history(attempts, { since: "7d" }, new Date("2026-01-10T12:00:00.000Z")).map((row) => row.questionId)).toEqual(["good", "fixed"]);
-    expect(reviewQueue(attempts)).toEqual(["old", "fixed"]);
+    expect(reviewQueue(attempts, [], { minimumDays: 0, minimumAnswersAfter: 0 })).toEqual(["old", "fixed"]);
     expect(weaknesses(attempts)[0]).toMatchObject({ skill: "WIC", missed: 1, total: 2 });
+  });
+
+  test("only reviews questions after both spacing thresholds", () => {
+    const attempts: Attempt[] = [
+      { questionId: "ready", outcome: "incorrect", answeredAt: "2026-01-01T00:00:00.000Z", durationSeconds: 10 },
+      { questionId: "not-enough-later-answers", outcome: "incorrect", answeredAt: "2026-01-05T00:00:00.000Z", durationSeconds: 10 },
+      { questionId: "too-recent", outcome: "incorrect", answeredAt: "2026-01-10T00:00:00.000Z", durationSeconds: 10 },
+    ];
+    const events = Array.from({ length: 100 }, (_, index) => ({
+      questionId: `later-${index}`,
+      correct: true,
+      answeredAt: "2026-01-03T00:00:00.000Z",
+      durationSeconds: 10,
+      difficulty: "M" as const,
+      domain: "CAS" as const,
+      skill: "WIC" as const,
+    }));
+
+    expect(reviewQueue(
+      attempts,
+      events,
+      { minimumDays: 7, minimumAnswersAfter: 100 },
+      new Date("2026-01-12T00:00:00.000Z"),
+    )).toEqual(["ready"]);
   });
 
   test("counts consecutive local calendar days", () => {
