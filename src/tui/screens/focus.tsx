@@ -14,7 +14,10 @@ export function FocusScreen({ focus, notice, onChange, onStart }: { focus: Focus
   const columns = focusColumns();
   const [position, setPosition] = useState({ column: 0, row: 0 });
   const normalized = { column: Math.min(position.column, columns.length - 1), row: Math.min(position.row, columns[Math.min(position.column, columns.length - 1)].rows.length - 1) };
-  const visibleColumns = width < 72
+  const columnGap = 2;
+  const columnCount = width < 72 ? 1 : Math.min(columns.length, Math.max(2, Math.floor((width + columnGap) / 26)));
+  const columnWidth = Math.floor((width - columnGap * (columnCount - 1)) / columnCount);
+  const visibleColumns = columnCount === 1
     ? [{ column: columns[normalized.column], columnIndex: normalized.column }]
     : columns.map((column, columnIndex) => ({ column, columnIndex }));
   useInput((input, key) => {
@@ -26,17 +29,17 @@ export function FocusScreen({ focus, notice, onChange, onStart }: { focus: Focus
     else if (key.return) onStart();
   });
   return (
-    <Screen title="focus" detail={`${focus.skills.length} skills · ${focus.difficulties.join(",")} · ${selectedDomains(focus).length} domains`} footer="j/k move · tab/←/→ group · space toggle · enter start · q quit">
+    <Screen title="focus" detail={`${focus.skills.length} skills · ${focus.difficulties.join(",")} · ${selectedDomains(focus).length} domains`} footer="j/k move · tab/←/→ group · space toggle · enter start">
       {notice ? <Text color="yellow">{notice}</Text> : null}
-      <Box columnGap={3} rowGap={0} flexWrap="wrap">
+      <Box columnGap={columnGap} rowGap={0} flexWrap="wrap">
         {visibleColumns.map(({ column, columnIndex }) => (
-          <Box key={column.id} flexDirection="column" width={width < 72 ? Math.max(20, width - 2) : 36}>
-            <Text bold color="cyan">{column.id === "difficulty" ? "Difficulty" : `${column.id}  ${domainLabels[column.id]}`}</Text>
+          <Box key={column.id} flexDirection="column" width={columnWidth}>
+            <Text bold color="cyan" wrap="truncate-end">{column.id === "difficulty" ? "Difficulty" : `${column.id}  ${domainLabels[column.id]}`}</Text>
             {column.rows.map((row, rowIndex) => {
               const active = normalized.column === columnIndex && normalized.row === rowIndex;
               const checked = rowChecked(focus, row);
               const label = row.kind === "difficulty" ? `${row.value}  ${difficultyLabels[row.value]}` : row.kind === "domain" ? "All skills" : `${row.value}  ${skillLabels[row.value]}`;
-              return <Text key={`${row.kind}-${row.value}`} color={active ? "yellow" : checked ? "green" : "gray"} bold={active}>{active ? ">" : " "} {checked ? "●" : "○"} {row.kind === "skill" ? "  " : ""}{label}</Text>;
+              return <Text key={`${row.kind}-${row.value}`} color={active ? "yellow" : checked ? "green" : "gray"} bold={active} wrap="truncate-end">{active ? ">" : " "} {checked ? "●" : "○"} {row.kind === "skill" ? "  " : ""}{label}</Text>;
             })}
           </Box>
         ))}

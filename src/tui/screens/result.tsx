@@ -7,7 +7,7 @@ import { Screen } from "../components/chrome.tsx";
 export function ResultScreen({ question, result, onNext }: { question: Question; result: AnswerRecord; onNext: () => void }) {
   useInput((input, key) => { if (input === "n" || key.return) onNext(); });
   return (
-    <Screen title="answer" detail={result.correct ? "correct" : "incorrect"} footer="enter/n next · f focus · h history · s stats · q quit">
+    <Screen title="answer" detail={result.correct ? "correct" : "incorrect"} footer="enter/n next">
       <Text bold color={result.correct ? "green" : "red"}>{result.correct ? "CORRECT" : "INCORRECT"}</Text>
       <Text>Your answer: <Text bold>{result.answer}</Text> · Correct: <Text bold color="green">{question.correctAnswers.join(", ")}</Text></Text>
       <Box marginTop={1} flexDirection="column">

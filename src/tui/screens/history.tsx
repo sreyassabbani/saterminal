@@ -17,7 +17,7 @@ export function HistoryScreen({ attempts, notice, onOpen }: { attempts: Iterable
   const visible = Math.max(5, height - 7);
   const start = Math.max(0, Math.min(selected - visible + 1, rows.length - visible));
   return (
-    <Screen title="history" detail={`${rows.length} answered`} footer="j/k move · enter details · p practice · f focus · s stats · q quit">
+    <Screen title="history" detail={`${rows.length} answered`} footer="j/k move · enter details">
       {notice ? <Text color="yellow">{notice}</Text> : null}
       {rows.length ? <Text color="gray">  question   result     skill  answered</Text> : <Text color="gray">No attempts yet.</Text>}
       <Box flexDirection="column">

@@ -38,7 +38,7 @@ export function PracticeScreen({ question, onAnswer, onSkip }: { question: Quest
   });
   const paneWidth = width >= 80 ? Math.floor((width - 3) / 2) : width - 2;
   return (
-    <Screen title="practice" detail={timerVisible ? `${formatTime(elapsed)}${paused ? " paused" : ""}` : "timer hidden"} footer={unsupported ? "o open · n/x/enter skip · f focus · h history · q quit" : "j/k or answer key select · enter submit · [/] scroll · space pause · f focus · h history · q quit"}>
+    <Screen title="practice" detail={timerVisible ? `${formatTime(elapsed)}${paused ? " paused" : ""}` : "timer hidden"} footer={unsupported ? "o open · n/x/enter skip" : "j/k or answer key select · enter submit · [/] scroll · space pause · t timer"}>
       <Text color="gray">{question.domain} {domainLabels[question.domain]} · {question.skill} {skillLabels[question.skill]} · {question.difficulty}</Text>
       {unsupported ? (
         <Box flexDirection="column" paddingTop={1}>

@@ -7,7 +7,7 @@ import { Screen } from "../components/chrome.tsx";
 export function DetailScreen({ question, attempt, onBack }: { question: Question; attempt: Attempt; onBack: () => void }) {
   useInput((_input, key) => { if (key.escape) onBack(); });
   return (
-    <Screen title="question details" detail={attempt.outcome} footer="esc history · p practice · f focus · q quit">
+    <Screen title="question details" detail={attempt.outcome} footer="esc back">
       <Text bold color={attempt.outcome === "incorrect" ? "red" : attempt.outcome === "corrected" ? "yellow" : "green"}>{attempt.outcome.toUpperCase()}</Text>
       <Text color="gray">{question.domain} · {question.skill} · difficulty {question.difficulty} · {question.id}</Text>
       <Text> </Text>

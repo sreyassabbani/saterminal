@@ -7,7 +7,7 @@ export function SetupScreen({ location, onAccept, onDecline }: { location: strin
     else if (input === "n") onDecline();
   });
   return (
-    <Screen title="setup" footer="y/enter allow · n decline · q quit">
+    <Screen title="setup" footer="y/enter allow · n decline · q quit" globalNavigation={false}>
       <Text bold>Keep your SAT progress locally?</Text>
       <Text color="gray">Questions, answers, focus, and history stay on this computer.</Text>
       <Text> </Text>
