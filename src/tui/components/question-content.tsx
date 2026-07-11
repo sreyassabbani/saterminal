@@ -17,16 +17,14 @@ export function QuestionContent({ question, width, height, scroll = 0 }: { quest
 }
 
 export function AnswerChoices({ question, selected, width, height }: { question: Question; selected: number; width: number; height: number }) {
+  const markerWidth = Math.max(...question.choices.map((choice) => Bun.stringWidth(`  ${choice.key}.`)));
   const choices = question.choices.map((choice, index) => ({
     index,
-    lines: wrapText(
-      `${index === selected ? ">" : " "} ${choice.key}. ${htmlToText(choice.content).replace(/\n+/g, " ")}`,
-      Math.max(10, width - 1),
-    ),
+    lines: hangingChoiceLines(choice.key, choice.content, index === selected, markerWidth, width),
   }));
   const selectedStart = choices.slice(0, selected).reduce((total, choice) => total + choice.lines.length + 1, 0);
   const selectedEnd = selectedStart + (choices[selected]?.lines.length ?? 1);
-  const allLines = choices.flatMap((choice) => [...choice.lines.map((line) => ({ line, selected: choice.index === selected })), { line: "", selected: false }]);
+  const allLines = choices.flatMap((choice) => [...choice.lines.map((line) => ({ line, selected: choice.index === selected })), { line: " ", selected: false }]);
   const start = Math.max(0, Math.min(selectedStart, selectedEnd - height, allLines.length - height));
   const visible = allLines.slice(start, start + height);
   return (
@@ -36,4 +34,11 @@ export function AnswerChoices({ question, selected, width, height }: { question:
       ))}
     </Box>
   );
+}
+
+function hangingChoiceLines(key: string, content: string, selected: boolean, markerWidth: number, width: number): string[] {
+  const marker = `${selected ? ">" : " "} ${key}.`.padEnd(markerWidth);
+  const indent = " ".repeat(markerWidth + 1);
+  return wrapText(htmlToText(content).replace(/\n+/g, " "), Math.max(10, width - indent.length))
+    .map((line, index) => index === 0 ? `${marker} ${line}` : `${indent}${line}`);
 }
