@@ -1,17 +1,17 @@
 import { Spinner } from "@inkjs/ui";
 import { Box, Text, useApp, useInput, useStdout } from "ink";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { dataDirectoryExists, ensureDatabase } from "../database/index.ts";
 import { loadFocus, saveFocus } from "../database/focus-repository.ts";
 import { loadAttempts } from "../database/progress-repository.ts";
 import { dataDirectory, displayPath } from "../local-data/paths.ts";
 import { answerQuestion } from "../practice/answer-question.ts";
+import { emptyQueueMessage, questionsToReview, skipQuestion, takeNextQuestion, unansweredQuestions, type QuestionQueue } from "../practice/question-queue.ts";
 import type { Focus } from "../questions/focus.ts";
 import { defaultFocus } from "../questions/focus.ts";
-import { findQuestion, loadQuestionBank, nextQuestion, questionBankStatus } from "../questions/local-bank.ts";
+import { findQuestion, loadQuestionBank, questionBankStatus } from "../questions/local-bank.ts";
 import type { Question } from "../questions/question.ts";
 import type { AnswerRecord, Attempt } from "../progress/attempt.ts";
-import { reviewQueue } from "../progress/review-queue.ts";
 import { DetailScreen } from "./screens/detail.tsx";
 import { FocusScreen } from "./screens/focus.tsx";
 import { HistoryScreen } from "./screens/history.tsx";
@@ -22,8 +22,20 @@ import { SummaryScreen } from "./screens/summary.tsx";
 import { useTerminalSize } from "./hooks/use-terminal-size.ts";
 
 type View = "setup" | "loading" | "focus" | "practice" | "result" | "history" | "summary" | "detail" | "error";
+type SessionEntry = (attempts: ReadonlyMap<string, Attempt>) => { queue: QuestionQueue; destination: "focus" | "question" };
 
-export function SatApp({ mode = "practice" }: { mode?: "practice" | "review" }) {
+const choosePracticeFocus: SessionEntry = () => ({ queue: unansweredQuestions(), destination: "focus" });
+const beginReview: SessionEntry = (attempts) => ({ queue: questionsToReview(attempts.values()), destination: "question" });
+
+export function PracticeSession() {
+  return <StudyShell enterSession={choosePracticeFocus} />;
+}
+
+export function ReviewSession() {
+  return <StudyShell enterSession={beginReview} />;
+}
+
+function StudyShell({ enterSession }: { enterSession: SessionEntry }) {
   const { exit } = useApp();
   const { stdout } = useStdout();
   const terminal = useTerminalSize();
@@ -35,37 +47,26 @@ export function SatApp({ mode = "practice" }: { mode?: "practice" | "review" }) 
   const [result, setResult] = useState<AnswerRecord>();
   const [notice, setNotice] = useState<string>();
   const [error, setError] = useState<string>();
-  const reviewIds = useRef<string[]>([]);
-  const skippedIds = useRef(new Set<string>());
+  const [queue, setQueue] = useState<QuestionQueue>(() => unansweredQuestions());
 
-  const takeNextQuestion = useCallback(async (currentAttempts: Map<string, Attempt>, currentFocus: Focus) => {
-    if (mode === "review") {
-      while (reviewIds.current.length) {
-        const candidate = await findQuestion(reviewIds.current.shift()!);
-        if (candidate) return candidate;
-      }
-      return undefined;
-    }
-    return nextQuestion([...currentAttempts.keys(), ...skippedIds.current], currentFocus);
-  }, [mode]);
-
-  const showNextQuestion = useCallback(async (currentAttempts = attempts, currentFocus = focus) => {
+  const showNextQuestion = useCallback(async (currentQueue = queue, currentAttempts = attempts, currentFocus = focus) => {
     setView("loading");
     try {
-      const next = await takeNextQuestion(currentAttempts, currentFocus);
-      if (!next) {
-        setNotice(mode === "review" ? "Review queue complete." : "No unanswered questions match this focus.");
+      const next = await takeNextQuestion(currentQueue, currentAttempts, currentFocus);
+      setQueue(next.queue);
+      if (!next.question) {
+        setNotice(emptyQueueMessage(next.queue));
         setView("history");
         return;
       }
-      setQuestion(next);
+      setQuestion(next.question);
       setResult(undefined);
       setView("practice");
     } catch (cause) {
       setError(message(cause));
       setView("error");
     }
-  }, [attempts, focus, mode, takeNextQuestion]);
+  }, [attempts, focus, queue]);
 
   const initialize = useCallback(async () => {
     setView("loading");
@@ -78,19 +79,21 @@ export function SatApp({ mode = "practice" }: { mode?: "practice" | "review" }) 
       setAttempts(currentAttempts);
       setFocus(currentFocus);
       setNotice(`${status.questions ?? 0} questions available offline.`);
-      if (mode === "review") {
-        reviewIds.current = reviewQueue(currentAttempts.values());
-        if (!reviewIds.current.length) {
+      const entry = enterSession(currentAttempts);
+      setQueue(entry.queue);
+      if (entry.destination === "question") {
+        if (entry.queue.kind === "review" && !entry.queue.pendingIds.length) {
           setNotice("No review queue yet. Miss or correct a question first.");
           setView("history");
           return;
         }
-        const first = await takeNextQuestion(currentAttempts, currentFocus);
-        if (first) {
-          setQuestion(first);
+        const first = await takeNextQuestion(entry.queue, currentAttempts, currentFocus);
+        setQueue(first.queue);
+        if (first.question) {
+          setQuestion(first.question);
           setView("practice");
         } else {
-          setNotice("Review queue complete.");
+          setNotice(emptyQueueMessage(first.queue));
           setView("history");
         }
       } else {
@@ -100,7 +103,7 @@ export function SatApp({ mode = "practice" }: { mode?: "practice" | "review" }) 
       setError(message(cause));
       setView("error");
     }
-  }, [mode, takeNextQuestion]);
+  }, [enterSession]);
 
   useEffect(() => {
     if (dataDirectoryExists()) void initialize();
@@ -120,7 +123,7 @@ export function SatApp({ mode = "practice" }: { mode?: "practice" | "review" }) 
     else if (input === "s" && view !== "setup") setView("summary");
     else if (input === "p" && view !== "setup") {
       if (question && view !== "result") setView("practice");
-      else void showNextQuestion();
+      else void showNextQuestion(unansweredQuestions());
     }
   });
 
@@ -142,7 +145,7 @@ export function SatApp({ mode = "practice" }: { mode?: "practice" | "review" }) 
     saveFocus(next);
     setFocus(next);
     setQuestion(undefined);
-    skippedIds.current.clear();
+    setQueue(unansweredQuestions());
   };
 
   const openAttempt = async (attempt: Attempt) => {
@@ -159,8 +162,8 @@ export function SatApp({ mode = "practice" }: { mode?: "practice" | "review" }) 
 
   let content;
   if (view === "setup") content = <SetupScreen location={displayPath(dataDirectory)} onAccept={() => void initialize()} onDecline={exit} />;
-  else if (view === "focus") content = <FocusScreen focus={focus} notice={notice} onChange={updateFocus} onStart={() => void showNextQuestion()} />;
-  else if (view === "practice" && question) content = <PracticeScreen key={question.id} question={question} onAnswer={(choice, duration) => void answer(choice, duration)} onSkip={() => { skippedIds.current.add(question.id); void showNextQuestion(); }} />;
+  else if (view === "focus") content = <FocusScreen focus={focus} notice={notice} onChange={updateFocus} onStart={() => void showNextQuestion(unansweredQuestions())} />;
+  else if (view === "practice" && question) content = <PracticeScreen key={question.id} question={question} onAnswer={(choice, duration) => void answer(choice, duration)} onSkip={() => void showNextQuestion(skipQuestion(queue, question.id))} />;
   else if (view === "result" && question && result) content = <ResultScreen question={question} result={result} onNext={() => void showNextQuestion()} />;
   else if (view === "history") content = <HistoryScreen attempts={attempts.values()} notice={notice} onOpen={(attempt) => void openAttempt(attempt)} />;
   else if (view === "summary") content = <SummaryScreen attempts={attempts.values()} />;
