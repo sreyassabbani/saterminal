@@ -7,6 +7,7 @@ export function resolveDataDirectory(home = homedir()): string {
 
 export const dataDirectory = resolveDataDirectory();
 export const databasePath = join(dataDirectory, "sat.db");
+export const preferencesPath = join(dataDirectory, "preferences.json");
 export const questionBankCachePath = join(dataDirectory, "cache", "question-bank.json");
 
 export function displayPath(path: string, home = homedir()): string {
