@@ -15,6 +15,10 @@ export function HorizontalRule({ width }: { width: number }) {
   return <Text color="gray">{"─".repeat(Math.max(1, width - 1))}</Text>;
 }
 
+export function PaneTitle({ active, children }: { active: boolean; children: string }) {
+  return <Text bold color="cyan" underline={active}>{children}</Text>;
+}
+
 export function Screen({ title, detail, children, footer, globalNavigation = true }: ScreenProps) {
   const { stdout } = useStdout();
   const shortcuts = [footer, globalNavigation ? globalShortcuts : undefined].filter(Boolean).join(" · ");

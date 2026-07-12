@@ -6,7 +6,7 @@ import { difficultyLabels, domainLabels, skillLabels } from "@/questions/taxonom
 import { formatDuration } from "@/text/duration.ts";
 import { htmlToText } from "@/text/html.ts";
 import { wrapText } from "@/text/wrap.ts";
-import { Screen } from "@/tui/components/chrome.tsx";
+import { PaneTitle, Screen } from "@/tui/components/chrome.tsx";
 import { answerChoiceLayout, clampedScroll, QuestionContent, type ChoiceLine } from "@/tui/components/question-content.tsx";
 import { useTerminalSize } from "@/tui/hooks/use-terminal-size.ts";
 
@@ -34,7 +34,9 @@ export function ResultScreen({ question, result, onNext }: ResultScreenProps) {
   const { width, height } = useTerminalSize();
   const sideBySide = width >= 80;
   const paneWidth = sideBySide ? Math.floor((width - 3) / 2) : width;
-  const viewportHeight = Math.max(5, height - 12);
+  const viewportHeight = Math.max(5, height - 8);
+  const summaryHeight = answerSummaryHeight(question, result, paneWidth);
+  const reviewHeight = Math.max(5, viewportHeight - summaryHeight - 1);
   const pageSize = Math.max(4, viewportHeight - 2);
   const [activePane, setActivePane] = useState<ResultPane>("review");
   const [questionScroll, setQuestionScroll] = useState(0);
@@ -65,8 +67,7 @@ export function ResultScreen({ question, result, onNext }: ResultScreenProps) {
       detail={<Text bold color={verdictColor}>{verdict}</Text>}
       footer="tab/←/→ pane · j/k line · [/] page · enter/n next"
     >
-      <AnswerSummary question={question} result={result} />
-      <Box flexDirection={sideBySide ? "row" : "column"} gap={3} marginTop={1}>
+      <Box flexDirection={sideBySide ? "row" : "column"} gap={3}>
         {(sideBySide || activePane === "question") && (
           <Box width={paneWidth} flexDirection="column">
             <PaneTitle active={activePane === "question"}>Question</PaneTitle>
@@ -76,13 +77,16 @@ export function ResultScreen({ question, result, onNext }: ResultScreenProps) {
         {(sideBySide || activePane === "review") && (
           <Box width={paneWidth} flexDirection="column">
             <PaneTitle active={activePane === "review"}>Answer & explanation</PaneTitle>
-            <ReviewContent
-              question={question}
-              result={result}
-              width={paneWidth}
-              height={viewportHeight}
-              scroll={reviewScroll}
-            />
+            <AnswerSummary question={question} result={result} />
+            <Box marginTop={1}>
+              <ReviewContent
+                question={question}
+                result={result}
+                width={paneWidth}
+                height={reviewHeight}
+                scroll={reviewScroll}
+              />
+            </Box>
           </Box>
         )}
       </Box>
@@ -98,21 +102,19 @@ function AnswerSummary({ question, result }: { question: Question; result: Answe
       <Text>
         Your answer: <Text bold color={result.correct ? "green" : "red"}>{result.answer}</Text>
         {"  ·  "}Correct: <Text bold color="green">{question.correctAnswers.join(", ")}</Text>
-        {"  ·  "}<Text bold color="cyan">{formatDuration(result.attempt.durationSeconds)}</Text>
-        {"  ·  "}<Text bold color={outcomeColor}>{result.attempt.outcome.toUpperCase()}</Text>
       </Text>
       <Text>
-        <Text bold color={difficultyColor}>{question.difficulty}  {difficultyLabels[question.difficulty]}</Text>
-        {"  ·  "}<Text color="magenta">{question.domain}  {domainLabels[question.domain]}</Text>
-        {"  ·  "}<Text color="blue">{question.skill}  {skillLabels[question.skill]}</Text>
+        <Text bold color="cyan">{formatDuration(result.attempt.durationSeconds)}</Text>
+        {"  ·  "}<Text bold color={outcomeColor}>{result.attempt.outcome.toUpperCase()}</Text>
+        {"  ·  "}<Text bold color={difficultyColor}>{question.difficulty}  {difficultyLabels[question.difficulty]}</Text>
       </Text>
-      <Text color="gray">Question {question.id}</Text>
+      <Text color="magenta">{question.domain}  {domainLabels[question.domain]}</Text>
+      <Text>
+        <Text color="blue">{question.skill}  {skillLabels[question.skill]}</Text>
+        {"  ·  "}<Text color="gray">Question {question.id}</Text>
+      </Text>
     </Box>
   );
-}
-
-function PaneTitle({ active, children }: { active: boolean; children: string }) {
-  return <Text bold color={active ? "yellow" : "cyan"}>{active ? "› " : "  "}{children}</Text>;
 }
 
 function ReviewContent({ question, result, width, height, scroll }: ReviewContentProps) {
@@ -121,7 +123,8 @@ function ReviewContent({ question, result, width, height, scroll }: ReviewConten
   const explanation = htmlToText(question.explanation ?? "No explanation is available.");
   const lines: ReviewLine[] = [
     ...choiceLines,
-    { text: "" },
+    { text: " " },
+    { text: " " },
     { text: "Explanation", kind: "heading" },
     ...wrapText(explanation, width).map((text) => ({ text, kind: "explanation" as const })),
   ];
@@ -141,4 +144,14 @@ function ReviewContent({ question, result, width, height, scroll }: ReviewConten
       })}
     </Box>
   );
+}
+
+function answerSummaryHeight(question: Question, result: AnswerRecord, width: number): number {
+  const lines = [
+    `Your answer: ${result.answer}  ·  Correct: ${question.correctAnswers.join(", ")}`,
+    `${formatDuration(result.attempt.durationSeconds)}  ·  ${result.attempt.outcome.toUpperCase()}  ·  ${question.difficulty}  ${difficultyLabels[question.difficulty]}`,
+    `${question.domain}  ${domainLabels[question.domain]}`,
+    `${question.skill}  ${skillLabels[question.skill]}  ·  Question ${question.id}`,
+  ];
+  return lines.reduce((height, line) => height + Math.max(1, Math.ceil(Bun.stringWidth(line) / width)), 0);
 }

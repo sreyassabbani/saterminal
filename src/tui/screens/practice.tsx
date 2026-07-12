@@ -10,7 +10,7 @@ import {
   QuestionContent,
   revealRange,
 } from "@/tui/components/question-content.tsx";
-import { Screen } from "@/tui/components/chrome.tsx";
+import { PaneTitle, Screen } from "@/tui/components/chrome.tsx";
 import { useTerminalSize } from "@/tui/hooks/use-terminal-size.ts";
 
 type PracticePane = "question" | "answers";
@@ -143,7 +143,7 @@ export function PracticeScreen({ question, onAnswer, onSkip }: PracticeScreenPro
 function QuestionPane({ active, question, width, height, scroll }: QuestionPaneProps) {
   return (
     <Box width={width} flexDirection="column">
-      <Text bold color={active ? "yellow" : "cyan"}>{active ? "› " : "  "}Question</Text>
+      <PaneTitle active={active}>Question</PaneTitle>
       <QuestionContent question={question} width={width} height={height} scroll={scroll} />
     </Box>
   );
@@ -152,7 +152,7 @@ function QuestionPane({ active, question, width, height, scroll }: QuestionPaneP
 function AnswerPane({ active, question, selected, width, height, scroll }: AnswerPaneProps) {
   return (
     <Box width={width} flexDirection="column">
-      <Text bold color={active ? "yellow" : "cyan"}>{active ? "› " : "  "}Answers</Text>
+      <PaneTitle active={active}>Answers</PaneTitle>
       <AnswerChoices question={question} selected={selected} width={width} height={height} scroll={scroll} />
     </Box>
   );
