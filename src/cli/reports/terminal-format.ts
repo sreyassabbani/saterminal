@@ -1,3 +1,5 @@
+export { formatDuration as duration } from "@/text/duration.ts";
+
 export type OutputMode = "pretty" | "plain" | "json";
 export type FormatSettings = { mode: OutputMode; color: boolean };
 
@@ -15,11 +17,6 @@ export function table(headers: string[], rows: (string | number)[][]): string {
 export function bar(ratio: number, width: number): string {
   const full = Math.round(Math.max(0, Math.min(1, ratio)) * width);
   return "█".repeat(full) + " ".repeat(width - full);
-}
-
-export function duration(seconds: number): string {
-  const rounded = Math.max(0, Math.round(seconds));
-  return `${Math.floor(rounded / 60)}:${String(rounded % 60).padStart(2, "0")}`;
 }
 
 export function percent(value: number): string {
