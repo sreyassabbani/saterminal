@@ -11,6 +11,10 @@ type ScreenProps = {
   globalNavigation?: boolean;
 };
 
+export function HorizontalRule({ width }: { width: number }) {
+  return <Text color="gray">{"─".repeat(Math.max(1, width - 1))}</Text>;
+}
+
 export function Screen({ title, detail, children, footer, globalNavigation = true }: ScreenProps) {
   const { stdout } = useStdout();
   const shortcuts = [footer, globalNavigation ? globalShortcuts : undefined].filter(Boolean).join(" · ");
@@ -24,7 +28,7 @@ export function Screen({ title, detail, children, footer, globalNavigation = tru
         {renderedDetail}
       </Box>
       <Box flexGrow={1} flexDirection="column" paddingTop={1}>{children}</Box>
-      <Text color="gray">{"─".repeat(Math.max(1, (stdout.columns ?? 80) - 1))}</Text>
+      <HorizontalRule width={stdout.columns ?? 80} />
       <Text color="gray">{shortcuts}</Text>
     </Box>
   );

@@ -4,7 +4,7 @@ import type { Focus } from "@/questions/focus.ts";
 import { selectedDomains, toggleDifficulty, toggleDomain, toggleSkill } from "@/questions/focus.ts";
 import type { Difficulty, DomainCode, SkillCode } from "@/questions/question.ts";
 import { difficulties, difficultyLabels, domains, domainLabels, skillLabels, skillsByDomain } from "@/questions/taxonomy.ts";
-import { Screen } from "@/tui/components/chrome.tsx";
+import { HorizontalRule, Screen } from "@/tui/components/chrome.tsx";
 import { useTerminalSize } from "@/tui/hooks/use-terminal-size.ts";
 
 type FocusPosition = {
@@ -50,6 +50,13 @@ type FocusGroupProps = {
   compact: boolean;
 };
 
+type DomainGridProps = {
+  focus: Focus;
+  columns: VisibleColumn[];
+  position: FocusPosition;
+  width: number;
+};
+
 export function FocusScreen({ focus, notice, onChange, onStart }: FocusScreenProps) {
   const { width } = useTerminalSize();
   const columns = focusColumns();
@@ -72,16 +79,49 @@ export function FocusScreen({ focus, notice, onChange, onStart }: FocusScreenPro
 }
 
 function FocusGrid({ focus, columns, position, width }: FocusGridProps) {
+  const [difficulty, ...domains] = columns;
+  const domainColumns = domains.map((column, index) => ({ column, columnIndex: index + 1 }));
+
+  return (
+    <Box flexDirection="column">
+      <Text bold color="cyan">Difficulty</Text>
+      <HorizontalRule width={width} />
+      <DifficultyChoices focus={focus} column={difficulty} position={position} />
+      <HorizontalRule width={width} />
+      <Box marginTop={1}>
+        <DomainGrid focus={focus} columns={domainColumns} position={position} width={width} />
+      </Box>
+    </Box>
+  );
+}
+
+function DifficultyChoices({ focus, column, position }: { focus: Focus; column: FocusColumn; position: FocusPosition }) {
+  return (
+    <Box flexWrap="wrap" columnGap={3}>
+      {column.rows.map((row, rowIndex) => {
+        const active = position.column === 0 && position.row === rowIndex;
+        const checked = rowChecked(focus, row);
+        return (
+          <Text key={`${row.kind}-${row.value}`} color={active ? "yellow" : checked ? "green" : "gray"} bold={active}>
+            {active ? ">" : " "} {checked ? "●" : "○"} {focusLabel(row)}
+          </Text>
+        );
+      })}
+    </Box>
+  );
+}
+
+function DomainGrid({ focus, columns, position, width }: DomainGridProps) {
   const columnGap = 2;
   const minimumColumnWidth = Math.max(...columns.flatMap((column) => [
-    Bun.stringWidth(columnLabel(column)),
-    ...column.rows.map((row) => 4 + Bun.stringWidth(focusLabel(row))),
+    Bun.stringWidth(columnLabel(column.column)),
+    ...column.column.rows.map((row) => 4 + Bun.stringWidth(focusLabel(row))),
   ]));
-  const overviewColumns = Math.min(3, Math.floor((width + columnGap) / (minimumColumnWidth + columnGap)));
+  const overviewColumns = Math.min(columns.length, Math.floor((width + columnGap) / (minimumColumnWidth + columnGap)));
   const columnCount = Math.max(1, overviewColumns);
   const visibleColumns: VisibleColumn[] = columnCount > 1
-    ? columns.map((column, columnIndex) => ({ column, columnIndex }))
-    : [{ column: columns[position.column], columnIndex: position.column }];
+    ? columns
+    : [columns[Math.max(0, position.column - 1)]];
   const renderedColumnCount = Math.min(columnCount, visibleColumns.length);
   const columnWidth = Math.floor((width - columnGap * (renderedColumnCount - 1)) / renderedColumnCount);
   const groupRows = chunks(visibleColumns, renderedColumnCount);
