@@ -1,17 +1,56 @@
 import { Box, Text, useInput } from "ink";
 import { useState } from "react";
-import type { Focus } from "../../questions/focus.ts";
-import { selectedDomains, toggleDifficulty, toggleDomain, toggleSkill } from "../../questions/focus.ts";
-import type { Difficulty, DomainCode, SkillCode } from "../../questions/question.ts";
-import { difficulties, difficultyLabels, domains, domainLabels, skillLabels, skillsByDomain } from "../../questions/taxonomy.ts";
-import { wrapText } from "../../text/wrap.ts";
-import { Screen } from "../components/chrome.tsx";
-import { useTerminalSize } from "../hooks/use-terminal-size.ts";
+import type { Focus } from "@/questions/focus.ts";
+import { selectedDomains, toggleDifficulty, toggleDomain, toggleSkill } from "@/questions/focus.ts";
+import type { Difficulty, DomainCode, SkillCode } from "@/questions/question.ts";
+import { difficulties, difficultyLabels, domains, domainLabels, skillLabels, skillsByDomain } from "@/questions/taxonomy.ts";
+import { Screen } from "@/tui/components/chrome.tsx";
+import { useTerminalSize } from "@/tui/hooks/use-terminal-size.ts";
 
-type Column = { id: "difficulty" | DomainCode; rows: ({ kind: "difficulty"; value: Difficulty } | { kind: "domain"; value: DomainCode } | { kind: "skill"; value: SkillCode })[] };
-type FocusRow = Column["rows"][number];
+type FocusPosition = {
+  column: number;
+  row: number;
+};
 
-export function FocusScreen({ focus, notice, onChange, onStart }: { focus: Focus; notice?: string; onChange: (focus: Focus) => void; onStart: () => void }) {
+type FocusRow =
+  | { kind: "difficulty"; value: Difficulty }
+  | { kind: "domain"; value: DomainCode }
+  | { kind: "skill"; value: SkillCode };
+
+type FocusColumn = {
+  id: "difficulty" | DomainCode;
+  rows: FocusRow[];
+};
+
+type VisibleColumn = {
+  column: FocusColumn;
+  columnIndex: number;
+};
+
+type FocusScreenProps = {
+  focus: Focus;
+  notice?: string;
+  onChange: (focus: Focus) => void;
+  onStart: () => void;
+};
+
+type FocusGridProps = {
+  focus: Focus;
+  columns: FocusColumn[];
+  position: FocusPosition;
+  width: number;
+};
+
+type FocusGroupProps = {
+  focus: Focus;
+  column: FocusColumn;
+  columnIndex: number;
+  position: FocusPosition;
+  width: number;
+  compact: boolean;
+};
+
+export function FocusScreen({ focus, notice, onChange, onStart }: FocusScreenProps) {
   const { width } = useTerminalSize();
   const columns = focusColumns();
   const [position, setPosition] = useState({ column: 0, row: 0 });
@@ -32,69 +71,91 @@ export function FocusScreen({ focus, notice, onChange, onStart }: { focus: Focus
   );
 }
 
-function FocusGrid({ focus, columns, position, width }: { focus: Focus; columns: Column[]; position: { column: number; row: number }; width: number }) {
-  const overview = width >= 120;
-  const columnGap = overview ? 2 : 0;
-  const visibleColumns = overview
+function FocusGrid({ focus, columns, position, width }: FocusGridProps) {
+  const columnGap = 2;
+  const minimumColumnWidth = Math.max(...columns.flatMap((column) => [
+    Bun.stringWidth(columnLabel(column)),
+    ...column.rows.map((row) => 4 + Bun.stringWidth(focusLabel(row))),
+  ]));
+  const overviewColumns = Math.min(3, Math.floor((width + columnGap) / (minimumColumnWidth + columnGap)));
+  const columnCount = Math.max(1, overviewColumns);
+  const visibleColumns: VisibleColumn[] = columnCount > 1
     ? columns.map((column, columnIndex) => ({ column, columnIndex }))
     : [{ column: columns[position.column], columnIndex: position.column }];
-  const columnWidth = Math.floor((width - columnGap * (visibleColumns.length - 1)) / visibleColumns.length);
-  const rowCount = Math.max(...visibleColumns.map(({ column }) => column.rows.length));
-  const headerHeight = Math.max(...visibleColumns.map(({ column }) => wrapText(columnLabel(column), columnWidth).length));
-  const rowHeights = Array.from({ length: rowCount }, (_, rowIndex) => Math.max(
-    ...visibleColumns.map(({ column }) => column.rows[rowIndex]
-      ? wrapText(focusLabel(column.rows[rowIndex]), Math.max(1, columnWidth - 4)).length
-      : 1),
-  ));
+  const renderedColumnCount = Math.min(columnCount, visibleColumns.length);
+  const columnWidth = Math.floor((width - columnGap * (renderedColumnCount - 1)) / renderedColumnCount);
+  const groupRows = chunks(visibleColumns, renderedColumnCount);
 
   return (
     <Box flexDirection="column">
-      <Box columnGap={columnGap}>
-        {visibleColumns.map(({ column }) => (
-          <Box key={column.id} width={columnWidth} height={headerHeight}>
-            <Text bold color="cyan">{columnLabel(column)}</Text>
-          </Box>
-        ))}
-      </Box>
-      {Array.from({ length: rowCount }, (_, rowIndex) => (
-        <Box key={rowIndex} columnGap={columnGap}>
-          {visibleColumns.map(({ column, columnIndex }) => {
-            const row = column.rows[rowIndex];
-            if (!row) return <Box key={`${column.id}-${rowIndex}`} width={columnWidth} height={rowHeights[rowIndex]} />;
-            const active = position.column === columnIndex && position.row === rowIndex;
-            const checked = rowChecked(focus, row);
-            const color = active ? "yellow" : checked ? "green" : "gray";
-            return (
-              <Box key={`${row.kind}-${row.value}`} width={columnWidth} height={rowHeights[rowIndex]}>
-                <Box width={4} flexShrink={0}>
-                  <Text color={color} bold={active}>{active ? ">" : " "} {checked ? "●" : "○"}</Text>
-                </Box>
-                <Box width={Math.max(1, columnWidth - 4)}>
-                  <Text color={color} bold={active}>{focusLabel(row)}</Text>
-                </Box>
-              </Box>
-            );
-          })}
+      {groupRows.map((groupRow, rowIndex) => (
+        <Box
+          key={groupRow.map(({ column }) => column.id).join("-")}
+          columnGap={columnGap}
+          marginBottom={rowIndex === groupRows.length - 1 ? 0 : 1}
+        >
+          {groupRow.map(({ column, columnIndex }) => (
+            <FocusGroup
+              key={column.id}
+              focus={focus}
+              column={column}
+              columnIndex={columnIndex}
+              position={position}
+              width={columnWidth}
+              compact={columnWidth < minimumColumnWidth}
+            />
+          ))}
         </Box>
       ))}
     </Box>
   );
 }
 
-function columnLabel(column: Column): string {
-  return column.id === "difficulty" ? "Difficulty" : `${column.id}  ${domainLabels[column.id]}`;
+function FocusGroup({ focus, column, columnIndex, position, width, compact }: FocusGroupProps) {
+  return (
+    <Box width={width} flexDirection="column">
+      <Text bold color="cyan">{columnLabel(column, compact)}</Text>
+      {column.rows.map((row, rowIndex) => {
+        const active = position.column === columnIndex && position.row === rowIndex;
+        const checked = rowChecked(focus, row);
+        return (
+          <Text key={`${row.kind}-${row.value}`} color={active ? "yellow" : checked ? "green" : "gray"} bold={active}>
+            {active ? ">" : " "} {checked ? "●" : "○"} {focusLabel(row, compact)}
+          </Text>
+        );
+      })}
+    </Box>
+  );
 }
 
-function focusLabel(row: FocusRow): string {
+function chunks<T>(values: readonly T[], size: number): T[][] {
+  return Array.from(
+    { length: Math.ceil(values.length / size) },
+    (_, index) => values.slice(index * size, (index + 1) * size),
+  );
+}
+
+function columnLabel(column: FocusColumn, compact = false): string {
+  if (column.id === "difficulty") return "Difficulty";
+  return compact ? column.id : `${column.id}  ${domainLabels[column.id]}`;
+}
+
+function focusLabel(row: FocusRow, compact = false): string {
   if (row.kind === "difficulty") return `${row.value}  ${difficultyLabels[row.value]}`;
   if (row.kind === "domain") return "All skills";
-  return `  ${row.value}  ${skillLabels[row.value]}`;
+  return compact ? row.value : `  ${row.value}  ${skillLabels[row.value]}`;
 }
 
-function focusColumns(): Column[] {
+function focusColumns(): FocusColumn[] {
   return [
     { id: "difficulty", rows: difficulties.map((value) => ({ kind: "difficulty", value })) },
-    ...domains.map((domain) => ({ id: domain, rows: [{ kind: "domain" as const, value: domain }, ...skillsByDomain[domain].map((value) => ({ kind: "skill" as const, value }))] })),
+    ...domains.map((domain) => ({
+      id: domain,
+      rows: [
+        { kind: "domain" as const, value: domain },
+        ...skillsByDomain[domain].map((value) => ({ kind: "skill" as const, value })),
+      ],
+    })),
   ];
 }
 
