@@ -2,7 +2,7 @@ import { Box, Text, useInput } from "ink";
 import { useState } from "react";
 import type { AnswerRecord, Outcome } from "@/progress/attempt.ts";
 import type { Difficulty, Question } from "@/questions/question.ts";
-import { difficultyLabels, domainLabels, skillLabels } from "@/questions/taxonomy.ts";
+import { difficultyLabels } from "@/questions/taxonomy.ts";
 import { formatDuration } from "@/text/duration.ts";
 import { htmlToText } from "@/text/html.ts";
 import { wrapText } from "@/text/wrap.ts";
@@ -46,8 +46,8 @@ export function ResultScreen({ question, result, onNext }: ResultScreenProps) {
   const sideBySide = width >= 80;
   const paneWidth = sideBySide ? Math.floor((width - 3) / 2) : width;
   const viewportHeight = Math.max(5, height - 8);
-  const summaryHeight = answerSummaryHeight(question, result, paneWidth);
-  const reviewHeight = Math.max(5, viewportHeight - summaryHeight - 1);
+  const contextHeight = answerContextHeight(question, result, paneWidth);
+  const reviewHeight = Math.max(5, viewportHeight - contextHeight - 1);
   const pageSize = Math.max(4, viewportHeight - 2);
   const [activePane, setActivePane] = useState<ResultPane>("review");
   const [questionScroll, setQuestionScroll] = useState(0);
@@ -91,7 +91,7 @@ export function ResultScreen({ question, result, onNext }: ResultScreenProps) {
             <PaneTitle active={activePane === "review"}>Answer & Explanation</PaneTitle>
 
             <Box marginTop={1}>
-              <AnswerSummary question={question} result={result} width={paneWidth} />
+              <AnswerContext question={question} result={result} />
             </Box>
 
             <Box marginTop={1}>
@@ -111,36 +111,12 @@ export function ResultScreen({ question, result, onNext }: ResultScreenProps) {
   );
 }
 
-function AnswerSummary({ question, result, width }: { question: Question; result: AnswerRecord; width: number }) {
-  const compact = width >= 56;
-  return (
-    <Box flexDirection="column">
-      <Text>
-        Yours <Text bold color={result.correct ? "green" : "red"}>{result.answer}</Text>
-        <Text color="gray">  ·  </Text>
-        Correct <Text bold color="green">{question.correctAnswers.join(", ")}</Text>
-        {compact && <Text color="gray">    </Text>}
-        {compact && <Timing question={question} result={result} />}
-      </Text>
-
-      {!compact && <Timing question={question} result={result} />}
-
-      <Text>
-        <Text color="magenta">{question.domain}</Text><Text color="gray">  {domainLabels[question.domain]}</Text>
-      </Text>
-      <Text>
-        <Text color="blue">{question.skill}</Text><Text color="gray">  {skillLabels[question.skill]}  ·  {question.id}</Text>
-      </Text>
-    </Box>
-  );
-}
-
-function Timing({ question, result }: { question: Question; result: AnswerRecord }) {
+function AnswerContext({ question, result }: { question: Question; result: AnswerRecord }) {
   return (
     <Text>
       <Text bold color="cyan">{formatDuration(result.attempt.durationSeconds)}</Text>
       <Text color="gray">  ·  </Text>
-      <Text bold color={difficultyColorMap[question.difficulty]}>{difficultyLabels[question.difficulty]}</Text>
+      <Text color={difficultyColorMap[question.difficulty]}>{difficultyLabels[question.difficulty]} question</Text>
     </Text>
   );
 }
@@ -174,13 +150,7 @@ function ReviewContent({ question, result, width, height, scroll }: ReviewConten
   );
 }
 
-function answerSummaryHeight(question: Question, result: AnswerRecord, width: number): number {
-  const compact = width >= 56;
-  const lines = [
-    `Yours ${result.answer}  ·  Correct ${question.correctAnswers.join(", ")}${compact ? `    ${formatDuration(result.attempt.durationSeconds)}  ·  ${difficultyLabels[question.difficulty]}` : ""}`,
-    ...compact ? [] : [`${formatDuration(result.attempt.durationSeconds)}  ·  ${difficultyLabels[question.difficulty]}`],
-    `${question.domain}  ${domainLabels[question.domain]}`,
-    `${question.skill}  ${skillLabels[question.skill]}  ·  ${question.id}`,
-  ];
-  return lines.reduce((height, line) => height + Math.max(1, Math.ceil(Bun.stringWidth(line) / width)), 0);
+function answerContextHeight(question: Question, result: AnswerRecord, width: number): number {
+  const line = `${formatDuration(result.attempt.durationSeconds)}  ·  ${difficultyLabels[question.difficulty]} question`;
+  return Math.max(1, Math.ceil(Bun.stringWidth(line) / width));
 }
