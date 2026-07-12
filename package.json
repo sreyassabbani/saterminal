@@ -1,6 +1,6 @@
 {
   "name": "saterminal",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "type": "module",
   "bin": {
     "sat": "src/cli/index.ts"
