@@ -17,6 +17,8 @@ type FocusRow =
   | { kind: "domain"; value: DomainCode }
   | { kind: "skill"; value: SkillCode };
 
+type SelectionState = "none" | "partial" | "all";
+
 type FocusColumn = {
   id: "difficulty" | DomainCode;
   rows: FocusRow[];
@@ -55,6 +57,13 @@ type DomainGridProps = {
   columns: VisibleColumn[];
   position: FocusPosition;
   width: number;
+};
+
+type FocusChoiceProps = {
+  focus: Focus;
+  row: FocusRow;
+  active: boolean;
+  compact?: boolean;
 };
 
 export function FocusScreen({ focus, notice, onChange, onStart }: FocusScreenProps) {
@@ -97,16 +106,15 @@ function FocusGrid({ focus, columns, position, width }: FocusGridProps) {
 
 function DifficultyChoices({ focus, column, position }: { focus: Focus; column: FocusColumn; position: FocusPosition }) {
   return (
-    <Box flexWrap="wrap" columnGap={3}>
-      {column.rows.map((row, rowIndex) => {
-        const active = position.column === 0 && position.row === rowIndex;
-        const checked = rowChecked(focus, row);
-        return (
-          <Text key={`${row.kind}-${row.value}`} color={active ? "yellow" : checked ? "green" : "gray"} bold={active}>
-            {active ? ">" : " "} {checked ? "●" : "○"} {focusLabel(row)}
-          </Text>
-        );
-      })}
+    <Box flexDirection="column">
+      {column.rows.map((row, rowIndex) => (
+        <FocusChoice
+          key={`${row.kind}-${row.value}`}
+          focus={focus}
+          row={row}
+          active={position.column === 0 && position.row === rowIndex}
+        />
+      ))}
     </Box>
   );
 }
@@ -115,7 +123,7 @@ function DomainGrid({ focus, columns, position, width }: DomainGridProps) {
   const columnGap = 2;
   const minimumColumnWidth = Math.max(...columns.flatMap((column) => [
     Bun.stringWidth(columnLabel(column.column)),
-    ...column.column.rows.map((row) => 4 + Bun.stringWidth(focusLabel(row))),
+    ...column.column.rows.map((row) => focusChoiceWidth(row)),
   ]));
   const overviewColumns = Math.min(columns.length, Math.floor((width + columnGap) / (minimumColumnWidth + columnGap)));
   const columnCount = Math.max(1, overviewColumns);
@@ -155,16 +163,27 @@ function FocusGroup({ focus, column, columnIndex, position, width, compact }: Fo
   return (
     <Box width={width} flexDirection="column">
       <Text bold color="cyan">{columnLabel(column, compact)}</Text>
-      {column.rows.map((row, rowIndex) => {
-        const active = position.column === columnIndex && position.row === rowIndex;
-        const checked = rowChecked(focus, row);
-        return (
-          <Text key={`${row.kind}-${row.value}`} color={active ? "yellow" : checked ? "green" : "gray"} bold={active}>
-            {active ? ">" : " "} {checked ? "●" : "○"} {focusLabel(row, compact)}
-          </Text>
-        );
-      })}
+      {column.rows.map((row, rowIndex) => (
+        <FocusChoice
+          key={`${row.kind}-${row.value}`}
+          focus={focus}
+          row={row}
+          active={position.column === columnIndex && position.row === rowIndex}
+          compact={compact}
+        />
+      ))}
     </Box>
+  );
+}
+
+function FocusChoice({ focus, row, active, compact = false }: FocusChoiceProps) {
+  const selection = rowSelection(focus, row);
+  const color = active ? "yellow" : selection === "all" ? "green" : selection === "partial" ? "yellow" : "gray";
+  const indent = row.kind === "skill" ? " " : "";
+  return (
+    <Text color={color} bold={active}>
+      {active ? ">" : " "} {indent}{selectionGlyph(selection)} {focusLabel(row, compact)}
+    </Text>
   );
 }
 
@@ -183,7 +202,12 @@ function columnLabel(column: FocusColumn, compact = false): string {
 function focusLabel(row: FocusRow, compact = false): string {
   if (row.kind === "difficulty") return `${row.value}  ${difficultyLabels[row.value]}`;
   if (row.kind === "domain") return "All skills";
-  return compact ? row.value : `  ${row.value}  ${skillLabels[row.value]}`;
+  return compact ? row.value : `${row.value}  ${skillLabels[row.value]}`;
+}
+
+function focusChoiceWidth(row: FocusRow): number {
+  const indent = row.kind === "skill" ? 1 : 0;
+  return 4 + indent + Bun.stringWidth(focusLabel(row));
 }
 
 function focusColumns(): FocusColumn[] {
@@ -205,8 +229,16 @@ function toggleRow(focus: Focus, row: FocusRow): Focus {
   return toggleSkill(focus, row.value);
 }
 
-function rowChecked(focus: Focus, row: FocusRow): boolean {
-  if (row.kind === "difficulty") return focus.difficulties.includes(row.value);
-  if (row.kind === "skill") return focus.skills.includes(row.value);
-  return skillsByDomain[row.value].every((skill) => focus.skills.includes(skill));
+function rowSelection(focus: Focus, row: FocusRow): SelectionState {
+  if (row.kind === "difficulty") return focus.difficulties.includes(row.value) ? "all" : "none";
+  if (row.kind === "skill") return focus.skills.includes(row.value) ? "all" : "none";
+  const selected = skillsByDomain[row.value].filter((skill) => focus.skills.includes(skill)).length;
+  if (selected === 0) return "none";
+  return selected === skillsByDomain[row.value].length ? "all" : "partial";
+}
+
+function selectionGlyph(selection: SelectionState): string {
+  if (selection === "all") return "●";
+  if (selection === "partial") return "◐";
+  return "○";
 }
