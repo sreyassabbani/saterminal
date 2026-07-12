@@ -30,7 +30,27 @@ describe("cli", () => {
     expect(result.stdout).toContain("review");
     expect(result.stdout).toContain("weak");
     expect(result.stdout).toContain("stats");
+    expect(result.stdout).toContain("show");
     expect(result.stdout).toContain("config");
+  });
+
+  test("shows a question by ID", async () => {
+    const result = await run("show", "03c9f327");
+
+    expect(result.code).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("Question 03c9f327");
+    expect(result.stdout).toContain("Which choice best states the main purpose of the text?");
+    expect(result.stdout).toContain("Correct answer: A");
+    expect(result.stdout).toContain("Explanation");
+  });
+
+  test("reports an unknown question ID", async () => {
+    const result = await run("show", "not-a-question");
+
+    expect(result.code).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("question not-a-question was not found");
   });
 
   test("updates review preferences through the nested config command", async () => {

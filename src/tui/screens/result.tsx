@@ -1,7 +1,7 @@
 import { Box, Text, useInput } from "ink";
 import { useState } from "react";
-import type { AnswerRecord } from "@/progress/attempt.ts";
-import type { Question } from "@/questions/question.ts";
+import type { AnswerRecord, Outcome } from "@/progress/attempt.ts";
+import type { Difficulty, Question } from "@/questions/question.ts";
 import { difficultyLabels, domainLabels, skillLabels } from "@/questions/taxonomy.ts";
 import { formatDuration } from "@/text/duration.ts";
 import { htmlToText } from "@/text/html.ts";
@@ -28,6 +28,17 @@ type ReviewContentProps = {
   width: number;
   height: number;
   scroll: number;
+};
+
+const verdictColorMap: Record<Outcome, "red" | "yellow" | "green"> = {
+  "correct": "green",
+  "corrected": "yellow",
+  "incorrect": "red",
+};
+const difficultyColorMap: Record<Difficulty, "red" | "yellow" | "green"> = {
+  "E": "green",
+  "M": "yellow",
+  "H": "red",
 };
 
 export function ResultScreen({ question, result, onNext }: ResultScreenProps) {
@@ -58,8 +69,8 @@ export function ResultScreen({ question, result, onNext }: ResultScreenProps) {
     else if (key.pageDown || input === "]") scrollActivePane(pageSize);
   });
 
-  const verdict = result.correct ? "CORRECT" : "INCORRECT";
-  const verdictColor = result.correct ? "green" : "red";
+  const verdict = result.attempt.outcome.toUpperCase();
+  const verdictColor = verdictColorMap[result.attempt.outcome];
 
   return (
     <Screen
@@ -76,8 +87,13 @@ export function ResultScreen({ question, result, onNext }: ResultScreenProps) {
         )}
         {(sideBySide || activePane === "review") && (
           <Box width={paneWidth} flexDirection="column">
-            <PaneTitle active={activePane === "review"}>Answer & explanation</PaneTitle>
-            <AnswerSummary question={question} result={result} />
+
+            <PaneTitle active={activePane === "review"}>Answer & Explanation</PaneTitle>
+
+            <Box marginTop={1}>
+              <AnswerSummary question={question} result={result} />
+            </Box>
+
             <Box marginTop={1}>
               <ReviewContent
                 question={question}
@@ -87,6 +103,7 @@ export function ResultScreen({ question, result, onNext }: ResultScreenProps) {
                 scroll={reviewScroll}
               />
             </Box>
+
           </Box>
         )}
       </Box>
@@ -95,23 +112,28 @@ export function ResultScreen({ question, result, onNext }: ResultScreenProps) {
 }
 
 function AnswerSummary({ question, result }: { question: Question; result: AnswerRecord }) {
-  const outcomeColor = result.attempt.outcome === "incorrect" ? "red" : result.attempt.outcome === "corrected" ? "yellow" : "green";
-  const difficultyColor = question.difficulty === "E" ? "green" : question.difficulty === "M" ? "yellow" : "red";
   return (
-    <Box flexDirection="column">
+    <Box flexDirection="column" gap={1}>
       <Text>
-        Your answer: <Text bold color={result.correct ? "green" : "red"}>{result.answer}</Text>
-        {"  ·  "}Correct: <Text bold color="green">{question.correctAnswers.join(", ")}</Text>
+        Selected: <Text bold color={result.correct ? "green" : "red"}>{result.answer}</Text>
       </Text>
+
       <Text>
-        <Text bold color="cyan">{formatDuration(result.attempt.durationSeconds)}</Text>
-        {"  ·  "}<Text bold color={outcomeColor}>{result.attempt.outcome.toUpperCase()}</Text>
-        {"  ·  "}<Text bold color={difficultyColor}>{question.difficulty}  {difficultyLabels[question.difficulty]}</Text>
+        Correct: <Text bold color="green">{question.correctAnswers.join(", ")}</Text>
       </Text>
-      <Text color="magenta">{question.domain}  {domainLabels[question.domain]}</Text>
+
       <Text>
-        <Text color="blue">{question.skill}  {skillLabels[question.skill]}</Text>
-        {"  ·  "}<Text color="gray">Question {question.id}</Text>
+        Time: <Text bold color="cyan">{formatDuration(result.attempt.durationSeconds)}</Text>
+      </Text>
+
+      <Text>
+        Difficulty: <Text bold color={difficultyColorMap[question.difficulty]}>{difficultyLabels[question.difficulty]}</Text>
+      </Text>
+
+      <Text>
+        <Text color="magenta">{question.domain}  {domainLabels[question.domain]}</Text>
+        <Text>  ·  </Text><Text color="blue">{question.skill}  {skillLabels[question.skill]}</Text>
+        <Text>  </Text><Text color="gray">({question.id})</Text>
       </Text>
     </Box>
   );
@@ -148,10 +170,11 @@ function ReviewContent({ question, result, width, height, scroll }: ReviewConten
 
 function answerSummaryHeight(question: Question, result: AnswerRecord, width: number): number {
   const lines = [
-    `Your answer: ${result.answer}  ·  Correct: ${question.correctAnswers.join(", ")}`,
-    `${formatDuration(result.attempt.durationSeconds)}  ·  ${result.attempt.outcome.toUpperCase()}  ·  ${question.difficulty}  ${difficultyLabels[question.difficulty]}`,
-    `${question.domain}  ${domainLabels[question.domain]}`,
-    `${question.skill}  ${skillLabels[question.skill]}  ·  Question ${question.id}`,
+    `Selected: ${result.answer}`,
+    `Correct: ${question.correctAnswers.join(", ")}`,
+    `Time: ${formatDuration(result.attempt.durationSeconds)}`,
+    `Difficulty: ${difficultyLabels[question.difficulty]}`,
+    `${question.domain}  ${domainLabels[question.domain]}  ·  ${question.skill}  ${skillLabels[question.skill]}  (${question.id})`,
   ];
-  return lines.reduce((height, line) => height + Math.max(1, Math.ceil(Bun.stringWidth(line) / width)), 0);
+  return lines.reduce((height, line) => height + Math.max(1, Math.ceil(Bun.stringWidth(line) / width)), 0) + 4;
 }
