@@ -13,11 +13,11 @@ export const options = z.object({
 type Options = z.infer<typeof options>;
 
 export default function SetConfigCommand({ options }: { options: Options }) {
-  return <CommandAction dependencies={[options.minimumDays, options.minimumAnswersAfter, options.resultDetail]} run={() => {
+  return <CommandAction dependencies={[options.minimumDays, options.minimumAnswersAfter, options.resultDetail]} run={async () => {
     if (options.minimumDays === undefined && options.minimumAnswersAfter === undefined && options.resultDetail === undefined) {
       throw new Error("provide --minimum-days, --minimum-answers-after, or --result-detail");
     }
-    const current = loadPreferences();
+    const current = await loadPreferences();
     const next = {
       ...current,
       review: {
@@ -28,7 +28,7 @@ export default function SetConfigCommand({ options }: { options: Options }) {
         resultDetail: options.resultDetail ?? current.display.resultDetail,
       },
     };
-    savePreferences(next);
+    await savePreferences(next);
     return `Updated ${displayPath(preferencesPath)}\nreview: ${next.review.minimumDays} days · ${next.review.minimumAnswersAfter} later answers\nresult detail: ${next.display.resultDetail}`;
   }} />;
 }

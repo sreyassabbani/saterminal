@@ -1,4 +1,5 @@
-import { mkdirSync, statSync } from "node:fs";
+import { mkdirSync } from "node:fs";
+import { stat } from "node:fs/promises";
 import { dirname } from "node:path";
 import { Database } from "bun:sqlite";
 import { dataDirectory, databasePath } from "@/local-data/paths.ts";
@@ -17,9 +18,9 @@ export function ensureDatabase(path = databasePath): void {
   database.close();
 }
 
-export function dataDirectoryExists(path = dataDirectory): boolean {
+export async function dataDirectoryExists(path = dataDirectory): Promise<boolean> {
   try {
-    return statSync(path).isDirectory();
+    return (await stat(path)).isDirectory();
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
     throw error;

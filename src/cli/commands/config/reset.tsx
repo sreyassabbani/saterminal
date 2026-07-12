@@ -5,8 +5,8 @@ import { defaultPreferences, savePreferences } from "@/preferences/index.ts";
 export const description = "Restore default preferences";
 
 export default function ResetConfigCommand() {
-  return <CommandAction dependencies={[]} run={() => {
-    savePreferences(defaultPreferences);
+  return <CommandAction dependencies={[]} run={async () => {
+    await savePreferences(defaultPreferences);
     return `Reset ${displayPath(preferencesPath)} to the defaults.`;
   }} />;
 }

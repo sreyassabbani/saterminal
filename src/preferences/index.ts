@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { chmod, mkdir, rename } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { preferencesPath } from "@/local-data/paths.ts";
@@ -29,15 +29,15 @@ export const defaultPreferences: Preferences = {
   },
 };
 
-export function ensurePreferences(path = preferencesPath): void {
-  if (existsSync(path)) savePreferences(loadPreferences(path), path);
-  else savePreferences(defaultPreferences, path);
+export async function ensurePreferences(path = preferencesPath): Promise<void> {
+  if (await Bun.file(path).exists()) await savePreferences(await loadPreferences(path), path);
+  else await savePreferences(defaultPreferences, path);
 }
 
-export function loadPreferences(path = preferencesPath): Preferences {
+export async function loadPreferences(path = preferencesPath): Promise<Preferences> {
   let source: string;
   try {
-    source = readFileSync(path, "utf8");
+    source = await Bun.file(path).text();
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return structuredClone(defaultPreferences);
     throw error;
@@ -50,14 +50,15 @@ export function loadPreferences(path = preferencesPath): Preferences {
   }
 }
 
-export function savePreferences(preferences: Preferences, path = preferencesPath): void {
+export async function savePreferences(preferences: Preferences, path = preferencesPath): Promise<void> {
   const normalized = parsePreferences(preferences);
-  mkdirSync(dirname(path), { recursive: true });
-  writePreferencesSchema(path);
+  await mkdir(dirname(path), { recursive: true });
+  await writePreferencesSchema(path);
   const temporaryPath = `${path}.${process.pid}.tmp`;
   const document = { $schema: `./${basename(schemaPathFor(path))}`, ...normalized };
-  writeFileSync(temporaryPath, `${JSON.stringify(document, null, 2)}\n`, { mode: 0o600 });
-  renameSync(temporaryPath, path);
+  await Bun.write(temporaryPath, `${JSON.stringify(document, null, 2)}\n`);
+  await chmod(temporaryPath, 0o600);
+  await rename(temporaryPath, path);
 }
 
 export function parsePreferences(value: unknown): Preferences {
@@ -80,11 +81,12 @@ export function parsePreferences(value: unknown): Preferences {
   };
 }
 
-function writePreferencesSchema(path: string): void {
+async function writePreferencesSchema(path: string): Promise<void> {
   const schemaPath = schemaPathFor(path);
   const temporaryPath = `${schemaPath}.${process.pid}.tmp`;
-  writeFileSync(temporaryPath, readFileSync(bundledPreferencesSchemaPath), { mode: 0o600 });
-  renameSync(temporaryPath, schemaPath);
+  await Bun.write(temporaryPath, Bun.file(bundledPreferencesSchemaPath));
+  await chmod(temporaryPath, 0o600);
+  await rename(temporaryPath, schemaPath);
 }
 
 function schemaPathFor(path: string): string {

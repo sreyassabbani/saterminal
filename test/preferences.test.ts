@@ -21,27 +21,27 @@ describe("preferences", () => {
     expect(() => parsePreferences({ display: { resultDetail: "verbose" } })).toThrow("brief, standard, detailed");
   });
 
-  test("round-trips an editable local JSON file", () => {
+  test("round-trips an editable local JSON file", async () => {
     const directory = mkdtempSync(join(tmpdir(), "saterminal-preferences-"));
     directories.push(directory);
     const path = join(directory, "preferences.json");
     const preferences = { review: { minimumDays: 10, minimumAnswersAfter: 150 }, display: { resultDetail: "detailed" as const } };
 
-    savePreferences(preferences, path);
+    await savePreferences(preferences, path);
 
-    expect(loadPreferences(path)).toEqual(preferences);
+    expect(await loadPreferences(path)).toEqual(preferences);
     expect(readJson(path)).toMatchObject({ $schema: "./preferences.schema.json" });
     expect(existsSync(join(directory, "preferences.schema.json"))).toBe(true);
   });
 
-  test("materializes defaults and editor schema during local setup", () => {
+  test("materializes defaults and editor schema during local setup", async () => {
     const directory = mkdtempSync(join(tmpdir(), "saterminal-preferences-"));
     directories.push(directory);
     const path = join(directory, "preferences.json");
 
-    ensurePreferences(path);
+    await ensurePreferences(path);
 
-    expect(loadPreferences(path)).toEqual({
+    expect(await loadPreferences(path)).toEqual({
       review: { minimumDays: 7, minimumAnswersAfter: 100 },
       display: { resultDetail: "standard" },
     });

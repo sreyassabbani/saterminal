@@ -104,11 +104,11 @@ function StudyShell({ enterSession }: { enterSession: SessionEntry }) {
   const initialize = useCallback(async () => {
     setView("loading");
     try {
-      ensureLocalData();
+      await ensureLocalData();
       const currentAttempts = loadAttempts();
       const currentEvents = loadAttemptEvents();
       const currentFocus = loadFocus();
-      const preferences = loadPreferences();
+      const preferences = await loadPreferences();
       setResultDetail(preferences.display.resultDetail);
       await loadQuestionBank();
       const status = await questionBankStatus();
@@ -146,8 +146,9 @@ function StudyShell({ enterSession }: { enterSession: SessionEntry }) {
   }, [enterSession]);
 
   useEffect(() => {
-    if (dataDirectoryExists()) void initialize();
-    else setView("setup");
+    void dataDirectoryExists()
+      .then((exists) => { if (exists) void initialize(); else setView("setup"); })
+      .catch((cause) => { setError(message(cause)); setView("error"); });
   }, [initialize]);
 
   useEffect(() => {

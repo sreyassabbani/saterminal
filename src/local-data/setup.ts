@@ -1,19 +1,24 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdir, open } from "node:fs/promises";
 import { join } from "node:path";
 import { ensureDatabase } from "@/database/index.ts";
 import { dataDirectory } from "@/local-data/paths.ts";
 import { ensurePreferences } from "@/preferences/index.ts";
 
-export function ensureLocalData(directory = dataDirectory): void {
-  mkdirSync(directory, { recursive: true });
+export async function ensureLocalData(directory = dataDirectory): Promise<void> {
+  await mkdir(directory, { recursive: true });
   ensureDatabase(join(directory, "sat.db"));
-  ensurePreferences(join(directory, "preferences.json"));
-  createIgnoreFile(join(directory, ".ignore"));
+  await ensurePreferences(join(directory, "preferences.json"));
+  await createIgnoreFile(join(directory, ".ignore"));
 }
 
-function createIgnoreFile(path: string): void {
+async function createIgnoreFile(path: string): Promise<void> {
   try {
-    writeFileSync(path, "cache\n", { flag: "wx", mode: 0o600 });
+    const file = await open(path, "wx", 0o600);
+    try {
+      await file.writeFile("cache\n");
+    } finally {
+      await file.close();
+    }
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
   }

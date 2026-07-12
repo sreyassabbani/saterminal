@@ -1,13 +1,13 @@
-import { Text } from "ink";
+import { CommandAction } from "@/cli/components/command-action.tsx";
 import { displayPath, preferencesPath } from "@/local-data/paths.ts";
 import { loadPreferences } from "@/preferences/index.ts";
 
 export const description = "Show local preferences";
 
 export default function ConfigCommand() {
-  const preferences = loadPreferences();
-  return (
-    <Text>{[
+  return <CommandAction dependencies={[]} run={async () => {
+    const preferences = await loadPreferences();
+    return [
       "preferences",
       displayPath(preferencesPath),
       "",
@@ -16,6 +16,6 @@ export default function ConfigCommand() {
       `result detail                 ${preferences.display.resultDetail}`,
       "",
       "Update with: sat config set --minimum-days 7 --minimum-answers-after 100 --result-detail detailed",
-    ].join("\n")}</Text>
-  );
+    ].join("\n");
+  }} />;
 }

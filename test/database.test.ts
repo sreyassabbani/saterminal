@@ -24,11 +24,11 @@ const question: Question = {
 };
 
 describe("database", () => {
-  test("creates local data and a non-destructive cache ignore", () => {
+  test("creates local data and a non-destructive cache ignore", async () => {
     const directory = mkdtempSync(join(tmpdir(), "saterminal-setup-"));
     directories.push(directory);
 
-    ensureLocalData(directory);
+    await ensureLocalData(directory);
 
     expect(readFileSync(join(directory, ".ignore"), "utf8")).toBe("cache\n");
     expect(Bun.file(join(directory, "sat.db")).size).toBeGreaterThan(0);
@@ -36,7 +36,7 @@ describe("database", () => {
     expect(Bun.file(join(directory, "preferences.schema.json")).size).toBeGreaterThan(0);
 
     writeFileSync(join(directory, ".ignore"), "custom\n");
-    ensureLocalData(directory);
+    await ensureLocalData(directory);
     expect(readFileSync(join(directory, ".ignore"), "utf8")).toBe("custom\n");
   });
 
