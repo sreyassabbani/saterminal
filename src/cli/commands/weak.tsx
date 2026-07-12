@@ -1,8 +1,8 @@
-import { loadAttempts } from "../../database/progress-repository.ts";
-import { weaknesses } from "../../progress/weaknesses.ts";
-import { Report } from "../components/report.tsx";
-import { formatWeaknesses } from "../reports/weaknesses.ts";
-import { outputMode, reportColor, reportOptions, type ReportOptions } from "../report-options.ts";
+import { loadAttempts } from "@/database/progress-repository.ts";
+import { weaknesses } from "@/progress/weaknesses.ts";
+import { Report } from "@/cli/components/report.tsx";
+import { formatWeaknesses } from "@/cli/reports/weaknesses.ts";
+import { outputMode, reportColor, reportOptions, type ReportOptions } from "@/cli/report-options.ts";
 
 export const description = "Rank skills that need the most work";
 export const options = reportOptions;

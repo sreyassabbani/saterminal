@@ -1,6 +1,6 @@
-import { domainLabels, skillLabels } from "../questions/taxonomy.ts";
-import type { DomainCode, SkillCode } from "../questions/question.ts";
-import type { Attempt } from "./attempt.ts";
+import { domainLabels, skillLabels } from "@/questions/taxonomy.ts";
+import type { DomainCode, SkillCode } from "@/questions/question.ts";
+import type { Attempt } from "@/progress/attempt.ts";
 
 export type Weakness = {
   skill: SkillCode;

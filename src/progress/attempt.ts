@@ -1,5 +1,5 @@
-import type { Difficulty, DomainCode, Question, SkillCode } from "../questions/question.ts";
-import { checkAnswer } from "../questions/question.ts";
+import type { Difficulty, DomainCode, Question, SkillCode } from "@/questions/question.ts";
+import { checkAnswer } from "@/questions/question.ts";
 
 export type Outcome = "correct" | "incorrect" | "corrected";
 

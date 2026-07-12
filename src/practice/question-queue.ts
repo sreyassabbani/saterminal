@@ -1,8 +1,8 @@
-import type { Attempt, AttemptEvent } from "../progress/attempt.ts";
-import { reviewQueue, type ReviewRequirements } from "../progress/review-queue.ts";
-import type { Focus } from "../questions/focus.ts";
-import { findQuestion, nextQuestion } from "../questions/local-bank.ts";
-import type { Question } from "../questions/question.ts";
+import type { Attempt, AttemptEvent } from "@/progress/attempt.ts";
+import { reviewQueue, type ReviewRequirements } from "@/progress/review-queue.ts";
+import type { Focus } from "@/questions/focus.ts";
+import { findQuestion, nextQuestion } from "@/questions/local-bank.ts";
+import type { Question } from "@/questions/question.ts";
 
 export type QuestionQueue =
   | { kind: "unanswered"; skippedIds: ReadonlySet<string> }

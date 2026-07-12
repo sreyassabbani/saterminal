@@ -1,4 +1,4 @@
-import type { Difficulty, DomainCode, SkillCode } from "./question.ts";
+import type { Difficulty, DomainCode, SkillCode } from "@/questions/question.ts";
 
 export const difficulties = ["E", "M", "H"] as const satisfies readonly Difficulty[];
 export const domains = ["INI", "CAS", "EOI", "SEC"] as const satisfies readonly DomainCode[];

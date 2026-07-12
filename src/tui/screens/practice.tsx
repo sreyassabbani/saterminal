@@ -1,12 +1,12 @@
 import { Box, Text, useInput } from "ink";
 import { useEffect, useState } from "react";
-import { hasHtmlTable } from "../../text/html.ts";
-import { openQuestionPage } from "../../questions/practice-sat.ts";
-import type { Question } from "../../questions/question.ts";
-import { domainLabels, skillLabels } from "../../questions/taxonomy.ts";
-import { AnswerChoices, QuestionContent } from "../components/question-content.tsx";
-import { Screen } from "../components/chrome.tsx";
-import { useTerminalSize } from "../hooks/use-terminal-size.ts";
+import { hasHtmlTable } from "@/text/html.ts";
+import { openQuestionPage } from "@/questions/practice-sat.ts";
+import type { Question } from "@/questions/question.ts";
+import { domainLabels, skillLabels } from "@/questions/taxonomy.ts";
+import { AnswerChoices, QuestionContent } from "@/tui/components/question-content.tsx";
+import { Screen } from "@/tui/components/chrome.tsx";
+import { useTerminalSize } from "@/tui/hooks/use-terminal-size.ts";
 
 export function PracticeScreen({ question, onAnswer, onSkip }: { question: Question; onAnswer: (answer: string, duration: number) => void; onSkip: () => void }) {
   const { width, height } = useTerminalSize();
@@ -47,8 +47,17 @@ export function PracticeScreen({ question, onAnswer, onSkip }: { question: Quest
         </Box>
       ) : (
         <Box flexDirection={width >= 80 ? "row" : "column"} gap={3} paddingTop={1}>
-          <Box width={paneWidth} height={Math.max(8, height - 7)} flexDirection="column"><Text bold color="cyan">Question</Text><QuestionContent question={question} width={paneWidth} height={Math.max(6, height - 9)} scroll={scroll} /></Box>
-          <Box width={paneWidth} flexDirection="column"><Text bold color="cyan">Answers</Text><AnswerChoices question={question} selected={selected} width={paneWidth} height={Math.max(5, height - 9)} /></Box>
+
+          <Box width={paneWidth} height={Math.max(8, height - 7)} flexDirection="column">
+            <Text bold color="cyan">Question</Text>
+            <QuestionContent question={question} width={paneWidth} height={Math.max(6, height - 9)} scroll={scroll} />
+          </Box>
+
+          <Box width={paneWidth} flexDirection="column">
+            <Text bold color="cyan">Answers</Text>
+            <AnswerChoices question={question} selected={selected} width={paneWidth} height={Math.max(5, height - 9)} />
+          </Box>
+
         </Box>
       )}
     </Screen>

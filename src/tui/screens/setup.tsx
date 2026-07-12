@@ -1,5 +1,5 @@
 import { Text, useInput } from "ink";
-import { Screen } from "../components/chrome.tsx";
+import { Screen } from "@/tui/components/chrome.tsx";
 
 export function SetupScreen({ location, onAccept, onDecline }: { location: string; onAccept: () => void; onDecline: () => void }) {
   useInput((input, key) => {

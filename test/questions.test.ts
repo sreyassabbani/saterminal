@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { normalizeFocus, selectedDomains, toggleDomain, toggleSkill } from "../src/questions/focus.ts";
-import { nextQuestion } from "../src/questions/local-bank.ts";
+import { normalizeFocus, selectedDomains, toggleDomain, toggleSkill } from "@/questions/focus.ts";
+import { nextQuestion } from "@/questions/local-bank.ts";
 
 describe("question selection", () => {
   test("derives domains from selected skills instead of storing two sources of truth", () => {

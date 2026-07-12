@@ -1,7 +1,7 @@
-import type { Focus } from "../questions/focus.ts";
-import { defaultFocus, normalizeFocus } from "../questions/focus.ts";
-import { databasePath } from "../local-data/paths.ts";
-import { openDatabase } from "./index.ts";
+import type { Focus } from "@/questions/focus.ts";
+import { defaultFocus, normalizeFocus } from "@/questions/focus.ts";
+import { databasePath } from "@/local-data/paths.ts";
+import { openDatabase } from "@/database/index.ts";
 
 export function loadFocus(path = databasePath): Focus {
   const database = openDatabase(path);

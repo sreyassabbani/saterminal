@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import type { Question } from "./question.ts";
+import type { Question } from "@/questions/question.ts";
 
 export const practiceSatSite = "https://practicesat.vercel.app";
 

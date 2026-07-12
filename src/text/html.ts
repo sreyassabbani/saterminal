@@ -1,7 +1,7 @@
 import he from "he";
 import { HTMLElement, NodeType, parse, type Node } from "node-html-parser";
-import { prepareMediaHtml } from "./media.ts";
-import { appendSegment, finalizeSegments, type TextSegment, type TextStyle } from "./rich-text.ts";
+import { prepareMediaHtml } from "@/text/media.ts";
+import { appendSegment, finalizeSegments, type TextSegment, type TextStyle } from "@/text/rich-text.ts";
 
 export function htmlToText(html = ""): string {
   const text = parseHtmlSegments(html)

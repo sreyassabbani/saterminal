@@ -1,4 +1,4 @@
-import type { Attempt, AttemptEvent } from "./attempt.ts";
+import type { Attempt, AttemptEvent } from "@/progress/attempt.ts";
 
 export type ReviewRequirements = {
   minimumDays: number;

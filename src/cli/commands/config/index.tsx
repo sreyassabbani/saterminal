@@ -1,6 +1,6 @@
 import { Text } from "ink";
-import { displayPath, preferencesPath } from "../../../local-data/paths.ts";
-import { loadPreferences } from "../../../preferences/index.ts";
+import { displayPath, preferencesPath } from "@/local-data/paths.ts";
+import { loadPreferences } from "@/preferences/index.ts";
 
 export const description = "Show local preferences";
 

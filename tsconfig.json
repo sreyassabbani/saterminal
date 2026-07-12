@@ -6,9 +6,29 @@
     "jsx": "react-jsx",
     "strict": true,
     "skipLibCheck": true,
-    "types": ["bun"],
+    "types": [
+      "bun"
+    ],
     "allowImportingTsExtensions": true,
-    "noEmit": true
+    "noEmit": true,
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "@data/*": [
+        "./data/*"
+      ],
+      "@scripts/*": [
+        "./scripts/*"
+      ]
+    }
   },
-  "include": ["src/**/*.ts", "src/**/*.d.ts", "test/**/*.ts"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.d.ts",
+    "test/**/*.ts",
+    "test/**/*.tsx",
+    "scripts/**/*.ts"
+  ]
 }

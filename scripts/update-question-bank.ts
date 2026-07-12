@@ -1,11 +1,11 @@
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import pLimit from "p-limit";
-import type { QuestionBank } from "../src/questions/local-bank.ts";
-import { questionBankVersion } from "../src/questions/local-bank.ts";
-import type { Question, QuestionChoice } from "../src/questions/question.ts";
-import { isDifficulty, isDomainCode, isSkillCode } from "../src/questions/taxonomy.ts";
-import { difficulties, domains, skills } from "../src/questions/taxonomy.ts";
+import type { QuestionBank } from "@/questions/local-bank.ts";
+import { questionBankVersion } from "@/questions/local-bank.ts";
+import type { Question, QuestionChoice } from "@/questions/question.ts";
+import { isDifficulty, isDomainCode, isSkillCode } from "@/questions/taxonomy.ts";
+import { difficulties, domains, skills } from "@/questions/taxonomy.ts";
 
 const apiBaseUrl = "https://practicesat.vercel.app/api";
 const outputPath = "data/question-bank.json.zst";

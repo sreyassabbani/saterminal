@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { activity } from "../src/progress/activity.ts";
-import { createAnswerRecord, nextOutcome, type Attempt } from "../src/progress/attempt.ts";
-import { history } from "../src/progress/history.ts";
-import { reviewQueue } from "../src/progress/review-queue.ts";
-import { progressStatistics } from "../src/progress/statistics.ts";
-import { weaknesses } from "../src/progress/weaknesses.ts";
-import type { Question } from "../src/questions/question.ts";
+import { activity } from "@/progress/activity.ts";
+import { createAnswerRecord, nextOutcome, type Attempt } from "@/progress/attempt.ts";
+import { history } from "@/progress/history.ts";
+import { reviewQueue } from "@/progress/review-queue.ts";
+import { progressStatistics } from "@/progress/statistics.ts";
+import { weaknesses } from "@/progress/weaknesses.ts";
+import type { Question } from "@/questions/question.ts";
 
 const question: Question = {
   id: "q1", sourceId: "upstream-q1", difficulty: "M", domain: "CAS", skill: "WIC",

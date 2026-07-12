@@ -1,6 +1,6 @@
-import { displayPath, preferencesPath } from "../../../local-data/paths.ts";
-import { defaultPreferences, savePreferences } from "../../../preferences/index.ts";
-import { CommandAction } from "../../components/command-action.tsx";
+import { CommandAction } from "@/cli/components/command-action.tsx";
+import { displayPath, preferencesPath } from "@/local-data/paths.ts";
+import { defaultPreferences, savePreferences } from "@/preferences/index.ts";
 
 export const description = "Restore default preferences";
 

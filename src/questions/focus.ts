@@ -1,5 +1,5 @@
-import type { Difficulty, DomainCode, SkillCode } from "./question.ts";
-import { difficulties, domains, skills, skillsByDomain } from "./taxonomy.ts";
+import type { Difficulty, DomainCode, SkillCode } from "@/questions/question.ts";
+import { difficulties, domains, skills, skillsByDomain } from "@/questions/taxonomy.ts";
 
 export type Focus = {
   difficulties: Difficulty[];

@@ -1,5 +1,5 @@
-import type { Weakness } from "../../progress/weaknesses.ts";
-import { ansi, bar, duration, paint, percent, table, type FormatSettings } from "./terminal-format.ts";
+import type { Weakness } from "@/progress/weaknesses.ts";
+import { ansi, bar, duration, paint, percent, table, type FormatSettings } from "@/cli/reports/terminal-format.ts";
 
 export function formatWeaknesses(rows: Weakness[], settings: FormatSettings): string {
   if (settings.mode === "json") return JSON.stringify(rows);

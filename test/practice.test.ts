@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { emptyQueueMessage, questionsToReview, takeNextQuestion, unansweredQuestions } from "../src/practice/question-queue.ts";
-import type { Attempt } from "../src/progress/attempt.ts";
-import { defaultFocus } from "../src/questions/focus.ts";
-import { loadQuestionBank } from "../src/questions/local-bank.ts";
+import { emptyQueueMessage, questionsToReview, takeNextQuestion, unansweredQuestions } from "@/practice/question-queue.ts";
+import type { Attempt } from "@/progress/attempt.ts";
+import { defaultFocus } from "@/questions/focus.ts";
+import { loadQuestionBank } from "@/questions/local-bank.ts";
 
 describe("study queues", () => {
   test("review consumes prioritized question ids independently of the normal focus", async () => {

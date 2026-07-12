@@ -1,9 +1,9 @@
-import { loadAttemptEvents, loadAttempts } from "../../database/progress-repository.ts";
-import { activity } from "../../progress/activity.ts";
-import { progressStatistics } from "../../progress/statistics.ts";
-import { Report } from "../components/report.tsx";
-import { formatStats } from "../reports/stats.ts";
-import { outputMode, reportColor, reportOptions, type ReportOptions } from "../report-options.ts";
+import { loadAttemptEvents, loadAttempts } from "@/database/progress-repository.ts";
+import { activity } from "@/progress/activity.ts";
+import { progressStatistics } from "@/progress/statistics.ts";
+import { Report } from "@/cli/components/report.tsx";
+import { formatStats } from "@/cli/reports/stats.ts";
+import { outputMode, reportColor, reportOptions, type ReportOptions } from "@/cli/report-options.ts";
 
 export const description = "Show progress, streak, and recent activity";
 export const options = reportOptions;

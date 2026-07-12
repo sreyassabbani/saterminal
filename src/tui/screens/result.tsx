@@ -1,8 +1,8 @@
 import { Box, Text, useInput } from "ink";
-import { htmlToText } from "../../text/html.ts";
-import type { Question } from "../../questions/question.ts";
-import type { AnswerRecord } from "../../progress/attempt.ts";
-import { Screen } from "../components/chrome.tsx";
+import { htmlToText } from "@/text/html.ts";
+import type { Question } from "@/questions/question.ts";
+import type { AnswerRecord } from "@/progress/attempt.ts";
+import { Screen } from "@/tui/components/chrome.tsx";
 
 export function ResultScreen({ question, result, onNext }: { question: Question; result: AnswerRecord; onNext: () => void }) {
   useInput((input, key) => { if (input === "n" || key.return) onNext(); });

@@ -1,4 +1,4 @@
-import type { Attempt } from "./attempt.ts";
+import type { Attempt } from "@/progress/attempt.ts";
 
 export type ProgressStatistics = {
   answered: number;

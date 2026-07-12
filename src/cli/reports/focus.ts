@@ -1,7 +1,7 @@
-import type { Focus } from "../../questions/focus.ts";
-import { selectedDomains } from "../../questions/focus.ts";
-import { difficultyLabels, domainLabels, skillLabels } from "../../questions/taxonomy.ts";
-import { ansi, paint, type FormatSettings } from "./terminal-format.ts";
+import type { Focus } from "@/questions/focus.ts";
+import { selectedDomains } from "@/questions/focus.ts";
+import { difficultyLabels, domainLabels, skillLabels } from "@/questions/taxonomy.ts";
+import { ansi, paint, type FormatSettings } from "@/cli/reports/terminal-format.ts";
 
 export function formatFocus(focus: Focus, settings: FormatSettings): string {
   const domains = selectedDomains(focus);

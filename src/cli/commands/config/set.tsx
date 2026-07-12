@@ -1,8 +1,8 @@
 import { option } from "pastel";
 import { z } from "zod";
-import { displayPath, preferencesPath } from "../../../local-data/paths.ts";
-import { loadPreferences, savePreferences } from "../../../preferences/index.ts";
-import { CommandAction } from "../../components/command-action.tsx";
+import { CommandAction } from "@/cli/components/command-action.tsx";
+import { displayPath, preferencesPath } from "@/local-data/paths.ts";
+import { loadPreferences, savePreferences } from "@/preferences/index.ts";
 
 export const description = "Update local preferences";
 export const options = z.object({

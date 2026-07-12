@@ -1,8 +1,8 @@
 import { mkdirSync, statSync } from "node:fs";
 import { dirname } from "node:path";
 import { Database } from "bun:sqlite";
-import { dataDirectory, databasePath } from "../local-data/paths.ts";
-import { migrate } from "./migrations.ts";
+import { dataDirectory, databasePath } from "@/local-data/paths.ts";
+import { migrate } from "@/database/migrations.ts";
 
 export function openDatabase(path = databasePath): Database {
   mkdirSync(dirname(path), { recursive: true });

@@ -1,8 +1,8 @@
 import type { Database } from "bun:sqlite";
-import type { Difficulty, DomainCode, SkillCode } from "../questions/question.ts";
-import type { AnswerRecord, Attempt, AttemptEvent, Outcome } from "../progress/attempt.ts";
-import { databasePath } from "../local-data/paths.ts";
-import { openDatabase } from "./index.ts";
+import type { Difficulty, DomainCode, SkillCode } from "@/questions/question.ts";
+import type { AnswerRecord, Attempt, AttemptEvent, Outcome } from "@/progress/attempt.ts";
+import { databasePath } from "@/local-data/paths.ts";
+import { openDatabase } from "@/database/index.ts";
 
 export function loadAttempts(path = databasePath): Map<string, Attempt> {
   return usingDatabase(path, (database) => {

@@ -1,4 +1,4 @@
-import { appendSegment, stylesEqual, type TextSegment, type TextStyle } from "./rich-text.ts";
+import { appendSegment, stylesEqual, type TextSegment, type TextStyle } from "@/text/rich-text.ts";
 
 export function wrapSegments(segments: TextSegment[], width: number): TextSegment[][] {
   const usableWidth = Math.max(1, width);

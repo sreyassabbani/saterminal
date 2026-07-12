@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadPreferences, parsePreferences, savePreferences } from "../src/preferences/index.ts";
+import { loadPreferences, parsePreferences, savePreferences } from "@/preferences/index.ts";
 
 const directories: string[] = [];
 afterEach(() => { while (directories.length) rmSync(directories.pop()!, { recursive: true, force: true }); });

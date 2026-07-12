@@ -3,10 +3,10 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
-import { openDatabase } from "../src/database/index.ts";
-import { loadAttemptEvents, loadAttempts, recordAnswer } from "../src/database/progress-repository.ts";
-import { createAnswerRecord } from "../src/progress/attempt.ts";
-import type { Question } from "../src/questions/question.ts";
+import { openDatabase } from "@/database/index.ts";
+import { loadAttemptEvents, loadAttempts, recordAnswer } from "@/database/progress-repository.ts";
+import { createAnswerRecord } from "@/progress/attempt.ts";
+import type { Question } from "@/questions/question.ts";
 
 const directories: string[] = [];
 afterEach(() => { while (directories.length) rmSync(directories.pop()!, { recursive: true, force: true }); });

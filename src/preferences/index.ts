@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { preferencesPath } from "../local-data/paths.ts";
+import { preferencesPath } from "@/local-data/paths.ts";
 
 export type ReviewPreferences = {
   minimumDays: number;

@@ -1,8 +1,8 @@
 import { Text, useInput } from "ink";
-import { htmlToText } from "../../text/html.ts";
-import type { Question } from "../../questions/question.ts";
-import type { Attempt } from "../../progress/attempt.ts";
-import { Screen } from "../components/chrome.tsx";
+import { htmlToText } from "@/text/html.ts";
+import type { Question } from "@/questions/question.ts";
+import type { Attempt } from "@/progress/attempt.ts";
+import { Screen } from "@/tui/components/chrome.tsx";
 
 export function DetailScreen({ question, attempt, onBack }: { question: Question; attempt: Attempt; onBack: () => void }) {
   useInput((_input, key) => { if (key.escape) onBack(); });

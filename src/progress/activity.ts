@@ -1,4 +1,4 @@
-import type { AttemptEvent } from "./attempt.ts";
+import type { AttemptEvent } from "@/progress/attempt.ts";
 
 export type ActivityDay = { date: string; count: number };
 export type Activity = {

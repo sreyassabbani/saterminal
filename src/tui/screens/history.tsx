@@ -1,9 +1,9 @@
 import { Box, Text, useInput } from "ink";
 import { useState } from "react";
-import type { Attempt } from "../../progress/attempt.ts";
-import { history } from "../../progress/history.ts";
-import { Screen } from "../components/chrome.tsx";
-import { useTerminalSize } from "../hooks/use-terminal-size.ts";
+import type { Attempt } from "@/progress/attempt.ts";
+import { history } from "@/progress/history.ts";
+import { Screen } from "@/tui/components/chrome.tsx";
+import { useTerminalSize } from "@/tui/hooks/use-terminal-size.ts";
 
 export function HistoryScreen({ attempts, notice, onOpen }: { attempts: Iterable<Attempt>; notice?: string; onOpen: (attempt: Attempt) => void }) {
   const rows = history(attempts);

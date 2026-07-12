@@ -1,36 +1,53 @@
 import { Spinner } from "@inkjs/ui";
 import { Box, Text, useApp, useInput, useStdout } from "ink";
 import { useCallback, useEffect, useState } from "react";
-import { dataDirectoryExists, ensureDatabase } from "../database/index.ts";
-import { loadFocus, saveFocus } from "../database/focus-repository.ts";
-import { loadAttemptEvents, loadAttempts } from "../database/progress-repository.ts";
-import { dataDirectory, displayPath } from "../local-data/paths.ts";
-import { answerQuestion } from "../practice/answer-question.ts";
-import { emptyQueueMessage, questionsToReview, skipQuestion, takeNextQuestion, unansweredQuestions, type QuestionQueue } from "../practice/question-queue.ts";
-import { loadPreferences, type ReviewPreferences } from "../preferences/index.ts";
-import type { Focus } from "../questions/focus.ts";
-import { defaultFocus } from "../questions/focus.ts";
-import { findQuestion, loadQuestionBank, questionBankStatus } from "../questions/local-bank.ts";
-import type { Question } from "../questions/question.ts";
-import type { AnswerRecord, Attempt, AttemptEvent } from "../progress/attempt.ts";
-import { DetailScreen } from "./screens/detail.tsx";
-import { FocusScreen } from "./screens/focus.tsx";
-import { HistoryScreen } from "./screens/history.tsx";
-import { PracticeScreen } from "./screens/practice.tsx";
-import { ResultScreen } from "./screens/result.tsx";
-import { SetupScreen } from "./screens/setup.tsx";
-import { SummaryScreen } from "./screens/summary.tsx";
-import { useTerminalSize } from "./hooks/use-terminal-size.ts";
+import { loadFocus, saveFocus } from "@/database/focus-repository.ts";
+import { dataDirectoryExists, ensureDatabase } from "@/database/index.ts";
+import { loadAttemptEvents, loadAttempts } from "@/database/progress-repository.ts";
+import { dataDirectory, displayPath } from "@/local-data/paths.ts";
+import { answerQuestion } from "@/practice/answer-question.ts";
+import {
+  emptyQueueMessage,
+  questionsToReview,
+  skipQuestion,
+  takeNextQuestion,
+  unansweredQuestions,
+  type QuestionQueue,
+} from "@/practice/question-queue.ts";
+import { loadPreferences, type ReviewPreferences } from "@/preferences/index.ts";
+import type { AnswerRecord, Attempt, AttemptEvent } from "@/progress/attempt.ts";
+import type { Focus } from "@/questions/focus.ts";
+import { defaultFocus } from "@/questions/focus.ts";
+import { findQuestion, loadQuestionBank, questionBankStatus } from "@/questions/local-bank.ts";
+import type { Question } from "@/questions/question.ts";
+import { useTerminalSize } from "@/tui/hooks/use-terminal-size.ts";
+import { DetailScreen } from "@/tui/screens/detail.tsx";
+import { FocusScreen } from "@/tui/screens/focus.tsx";
+import { HistoryScreen } from "@/tui/screens/history.tsx";
+import { PracticeScreen } from "@/tui/screens/practice.tsx";
+import { ResultScreen } from "@/tui/screens/result.tsx";
+import { SetupScreen } from "@/tui/screens/setup.tsx";
+import { SummaryScreen } from "@/tui/screens/summary.tsx";
 
 type View = "setup" | "loading" | "focus" | "practice" | "result" | "history" | "summary" | "detail" | "error";
+
 type StudyRecords = {
   attempts: ReadonlyMap<string, Attempt>;
   events: readonly AttemptEvent[];
   reviewPreferences: ReviewPreferences;
 };
-type SessionEntry = (records: StudyRecords) => { queue: QuestionQueue; destination: "focus" | "question"; emptyNotice?: string };
 
-const choosePracticeFocus: SessionEntry = () => ({ queue: unansweredQuestions(), destination: "focus" });
+type SessionEntry = (records: StudyRecords) => {
+  queue: QuestionQueue;
+  destination: "focus" | "question";
+  emptyNotice?: string;
+};
+
+const choosePracticeFocus: SessionEntry = () => ({
+  queue: unansweredQuestions(),
+  destination: "focus",
+});
+
 const beginReview: SessionEntry = ({ attempts, events, reviewPreferences }) => ({
   queue: questionsToReview(attempts.values(), events, reviewPreferences),
   destination: "question",
@@ -59,7 +76,11 @@ function StudyShell({ enterSession }: { enterSession: SessionEntry }) {
   const [error, setError] = useState<string>();
   const [queue, setQueue] = useState<QuestionQueue>(() => unansweredQuestions());
 
-  const showNextQuestion = useCallback(async (currentQueue = queue, currentAttempts = attempts, currentFocus = focus) => {
+  const showNextQuestion = useCallback(async (
+    currentQueue = queue,
+    currentAttempts = attempts,
+    currentFocus = focus,
+  ) => {
     setView("loading");
     try {
       const next = await takeNextQuestion(currentQueue, currentAttempts, currentFocus);
@@ -91,7 +112,11 @@ function StudyShell({ enterSession }: { enterSession: SessionEntry }) {
       setAttempts(currentAttempts);
       setFocus(currentFocus);
       setNotice(`${status.questions ?? 0} questions available offline.`);
-      const entry = enterSession({ attempts: currentAttempts, events: currentEvents, reviewPreferences: preferences.review });
+      const entry = enterSession({
+        attempts: currentAttempts,
+        events: currentEvents,
+        reviewPreferences: preferences.review,
+      });
       setQueue(entry.queue);
       if (entry.destination === "question") {
         if (entry.queue.kind === "review" && !entry.queue.pendingIds.length) {
@@ -173,15 +198,38 @@ function StudyShell({ enterSession }: { enterSession: SessionEntry }) {
   };
 
   let content;
-  if (view === "setup") content = <SetupScreen location={displayPath(dataDirectory)} onAccept={() => void initialize()} onDecline={exit} />;
-  else if (view === "focus") content = <FocusScreen focus={focus} notice={notice} onChange={updateFocus} onStart={() => void showNextQuestion(unansweredQuestions())} />;
-  else if (view === "practice" && question) content = <PracticeScreen key={question.id} question={question} onAnswer={(choice, duration) => void answer(choice, duration)} onSkip={() => void showNextQuestion(skipQuestion(queue, question.id))} />;
-  else if (view === "result" && question && result) content = <ResultScreen question={question} result={result} onNext={() => void showNextQuestion()} />;
-  else if (view === "history") content = <HistoryScreen attempts={attempts.values()} notice={notice} onOpen={(attempt) => void openAttempt(attempt)} />;
-  else if (view === "summary") content = <SummaryScreen attempts={attempts.values()} />;
-  else if (view === "detail" && detail) content = <DetailScreen question={detail.question} attempt={detail.attempt} onBack={() => setView("history")} />;
-  else if (view === "error") content = <Box flexDirection="column"><Text bold color="red">Something went wrong.</Text><Text>{error}</Text><Text color="gray">Press q to quit.</Text></Box>;
-  else content = <Spinner label="Loading local SAT data" />;
+  if (view === "setup") {
+    content = <SetupScreen location={displayPath(dataDirectory)} onAccept={() => void initialize()} onDecline={exit} />;
+  } else if (view === "focus") {
+    content = <FocusScreen focus={focus} notice={notice} onChange={updateFocus} onStart={() => void showNextQuestion(unansweredQuestions())} />;
+  } else if (view === "practice" && question) {
+    content = (
+      <PracticeScreen
+        key={question.id}
+        question={question}
+        onAnswer={(choice, duration) => void answer(choice, duration)}
+        onSkip={() => void showNextQuestion(skipQuestion(queue, question.id))}
+      />
+    );
+  } else if (view === "result" && question && result) {
+    content = <ResultScreen question={question} result={result} onNext={() => void showNextQuestion()} />;
+  } else if (view === "history") {
+    content = <HistoryScreen attempts={attempts.values()} notice={notice} onOpen={(attempt) => void openAttempt(attempt)} />;
+  } else if (view === "summary") {
+    content = <SummaryScreen attempts={attempts.values()} />;
+  } else if (view === "detail" && detail) {
+    content = <DetailScreen question={detail.question} attempt={detail.attempt} onBack={() => setView("history")} />;
+  } else if (view === "error") {
+    content = (
+      <Box flexDirection="column">
+        <Text bold color="red">Something went wrong.</Text>
+        <Text>{error}</Text>
+        <Text color="gray">Press q to quit.</Text>
+      </Box>
+    );
+  } else {
+    content = <Spinner label="Loading local SAT data" />;
+  }
 
   return <Box width={terminal.width} height={terminal.height}>{content}</Box>;
 }

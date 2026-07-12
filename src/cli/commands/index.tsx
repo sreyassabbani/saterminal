@@ -1,4 +1,4 @@
-import { PracticeSession } from "../../tui/app.tsx";
+import { PracticeSession } from "@/tui/app.tsx";
 
 export const description = "Open interactive SAT practice";
 

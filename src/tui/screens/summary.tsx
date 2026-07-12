@@ -1,7 +1,7 @@
 import { Box, Text } from "ink";
-import type { Attempt } from "../../progress/attempt.ts";
-import { progressStatistics } from "../../progress/statistics.ts";
-import { Screen } from "../components/chrome.tsx";
+import type { Attempt } from "@/progress/attempt.ts";
+import { progressStatistics } from "@/progress/statistics.ts";
+import { Screen } from "@/tui/components/chrome.tsx";
 
 export function SummaryScreen({ attempts }: { attempts: Iterable<Attempt> }) {
   const stats = progressStatistics(attempts);

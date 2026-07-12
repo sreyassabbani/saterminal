@@ -1,5 +1,5 @@
-import type { Attempt } from "../../progress/attempt.ts";
-import { ansi, duration, paint, table, type FormatSettings } from "./terminal-format.ts";
+import type { Attempt } from "@/progress/attempt.ts";
+import { ansi, duration, paint, table, type FormatSettings } from "@/cli/reports/terminal-format.ts";
 
 export function formatHistory(attempts: Attempt[], settings: FormatSettings): string {
   if (settings.mode === "json") return JSON.stringify(attempts);

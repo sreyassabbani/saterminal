@@ -1,6 +1,6 @@
-import type { Activity } from "../../progress/activity.ts";
-import type { ProgressStatistics } from "../../progress/statistics.ts";
-import { ansi, bar, duration, paint, percent, table, type FormatSettings } from "./terminal-format.ts";
+import type { Activity } from "@/progress/activity.ts";
+import type { ProgressStatistics } from "@/progress/statistics.ts";
+import { ansi, bar, duration, paint, percent, table, type FormatSettings } from "@/cli/reports/terminal-format.ts";
 
 export function formatStats(stats: ProgressStatistics, activity: Activity, settings: FormatSettings): string {
   if (settings.mode === "json") return JSON.stringify({ ...stats, activity: { ...activity, heatmap: activity.days, days: undefined } });

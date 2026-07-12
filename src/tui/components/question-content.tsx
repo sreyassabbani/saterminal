@@ -1,7 +1,7 @@
 import { Box, Text } from "ink";
-import { htmlToText } from "../../text/html.ts";
-import { wrapText } from "../../text/wrap.ts";
-import type { Question } from "../../questions/question.ts";
+import { htmlToText } from "@/text/html.ts";
+import { wrapText } from "@/text/wrap.ts";
+import type { Question } from "@/questions/question.ts";
 
 export function QuestionContent({ question, width, height, scroll = 0 }: { question: Question; width: number; height: number; scroll?: number }) {
   const passage = htmlToText(question.passage ?? "");

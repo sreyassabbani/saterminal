@@ -1,4 +1,4 @@
-import { ReviewSession } from "../../tui/app.tsx";
+import { ReviewSession } from "@/tui/app.tsx";
 
 export const description = "Practice eligible missed and corrected questions";
 
