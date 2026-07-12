@@ -74,6 +74,7 @@ function StudyShell({ enterSession }: { enterSession: SessionEntry }) {
   const [result, setResult] = useState<AnswerRecord>();
   const [notice, setNotice] = useState<string>();
   const [error, setError] = useState<string>();
+  const [showTaxonomy, setShowTaxonomy] = useState(false);
   const [queue, setQueue] = useState<QuestionQueue>(() => unansweredQuestions());
 
   const showNextQuestion = useCallback(async (
@@ -107,6 +108,7 @@ function StudyShell({ enterSession }: { enterSession: SessionEntry }) {
       const currentEvents = loadAttemptEvents();
       const currentFocus = loadFocus();
       const preferences = loadPreferences();
+      setShowTaxonomy(preferences.display.showTaxonomy);
       await loadQuestionBank();
       const status = await questionBankStatus();
       setAttempts(currentAttempts);
@@ -212,7 +214,7 @@ function StudyShell({ enterSession }: { enterSession: SessionEntry }) {
       />
     );
   } else if (view === "result" && question && result) {
-    content = <ResultScreen question={question} result={result} onNext={() => void showNextQuestion()} />;
+    content = <ResultScreen question={question} result={result} showTaxonomy={showTaxonomy} onNext={() => void showNextQuestion()} />;
   } else if (view === "history") {
     content = <HistoryScreen attempts={attempts.values()} notice={notice} onOpen={(attempt) => void openAttempt(attempt)} />;
   } else if (view === "summary") {

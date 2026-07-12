@@ -9,12 +9,18 @@ export type ReviewPreferences = {
 
 export type Preferences = {
   review: ReviewPreferences;
+  display: {
+    showTaxonomy: boolean;
+  };
 };
 
 export const defaultPreferences: Preferences = {
   review: {
     minimumDays: 7,
     minimumAnswersAfter: 100,
+  },
+  display: {
+    showTaxonomy: false,
   },
 };
 
@@ -44,13 +50,18 @@ export function savePreferences(preferences: Preferences, path = preferencesPath
 
 export function parsePreferences(value: unknown): Preferences {
   const root = record(value, "preferences");
-  knownKeys(root, ["review"], "preferences");
+  knownKeys(root, ["review", "display"], "preferences");
   const review = root.review === undefined ? {} : record(root.review, "review");
   knownKeys(review, ["minimumDays", "minimumAnswersAfter"], "review");
+  const display = root.display === undefined ? {} : record(root.display, "display");
+  knownKeys(display, ["showTaxonomy"], "display");
   return {
     review: {
       minimumDays: nonNegativeInteger(review.minimumDays, "review.minimumDays", defaultPreferences.review.minimumDays),
       minimumAnswersAfter: nonNegativeInteger(review.minimumAnswersAfter, "review.minimumAnswersAfter", defaultPreferences.review.minimumAnswersAfter),
+    },
+    display: {
+      showTaxonomy: boolean(display.showTaxonomy, "display.showTaxonomy", defaultPreferences.display.showTaxonomy),
     },
   };
 }
@@ -69,6 +80,12 @@ function nonNegativeInteger(value: unknown, name: string, fallback: number): num
   if (value === undefined) return fallback;
   if (!Number.isInteger(value) || (value as number) < 0) throw new Error(`${name} must be a non-negative integer`);
   return value as number;
+}
+
+function boolean(value: unknown, name: string, fallback: boolean): boolean {
+  if (value === undefined) return fallback;
+  if (typeof value !== "boolean") throw new Error(`${name} must be a boolean`);
+  return value;
 }
 
 function message(value: unknown): string {

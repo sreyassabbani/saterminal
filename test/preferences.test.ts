@@ -11,6 +11,7 @@ describe("preferences", () => {
   test("fills omitted settings with defaults", () => {
     expect(parsePreferences({ review: { minimumDays: 14 } })).toEqual({
       review: { minimumDays: 14, minimumAnswersAfter: 100 },
+      display: { showTaxonomy: false },
     });
   });
 
@@ -23,7 +24,7 @@ describe("preferences", () => {
     const directory = mkdtempSync(join(tmpdir(), "saterminal-preferences-"));
     directories.push(directory);
     const path = join(directory, "preferences.json");
-    const preferences = { review: { minimumDays: 10, minimumAnswersAfter: 150 } };
+    const preferences = { review: { minimumDays: 10, minimumAnswersAfter: 150 }, display: { showTaxonomy: true } };
 
     savePreferences(preferences, path);
 

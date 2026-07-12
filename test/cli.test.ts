@@ -54,12 +54,13 @@ describe("cli", () => {
   });
 
   test("updates review preferences through the nested config command", async () => {
-    const result = await run("config", "set", "--minimum-days", "14", "--minimum-answers-after", "250");
+    const result = await run("config", "set", "--minimum-days", "14", "--minimum-answers-after", "250", "--taxonomy", "show");
     const saved = await Bun.file(join(result.home, ".saterminal", "preferences.json")).json();
 
     expect(result.code).toBe(0);
     expect(result.stdout).toContain("14 days · 250 later answers");
-    expect(saved).toEqual({ review: { minimumDays: 14, minimumAnswersAfter: 250 } });
+    expect(result.stdout).toContain("result taxonomy: shown");
+    expect(saved).toEqual({ review: { minimumDays: 14, minimumAnswersAfter: 250 }, display: { showTaxonomy: true } });
   });
 
   test("emits clean machine-readable reports", async () => {

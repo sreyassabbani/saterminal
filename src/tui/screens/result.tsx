@@ -2,7 +2,7 @@ import { Box, Text, useInput } from "ink";
 import { useState } from "react";
 import type { AnswerRecord, Outcome } from "@/progress/attempt.ts";
 import type { Difficulty, Question } from "@/questions/question.ts";
-import { difficultyLabels } from "@/questions/taxonomy.ts";
+import { difficultyLabels, domainLabels, skillLabels } from "@/questions/taxonomy.ts";
 import { formatDuration } from "@/text/duration.ts";
 import { htmlToText } from "@/text/html.ts";
 import { wrapText } from "@/text/wrap.ts";
@@ -15,6 +15,7 @@ type ResultPane = "question" | "review";
 type ResultScreenProps = {
   question: Question;
   result: AnswerRecord;
+  showTaxonomy: boolean;
   onNext: () => void;
 };
 
@@ -41,12 +42,12 @@ const difficultyColorMap: Record<Difficulty, "red" | "yellow" | "green"> = {
   "H": "red",
 };
 
-export function ResultScreen({ question, result, onNext }: ResultScreenProps) {
+export function ResultScreen({ question, result, showTaxonomy, onNext }: ResultScreenProps) {
   const { width, height } = useTerminalSize();
   const sideBySide = width >= 80;
   const paneWidth = sideBySide ? Math.floor((width - 3) / 2) : width;
   const viewportHeight = Math.max(5, height - 8);
-  const contextHeight = answerContextHeight(question, result, paneWidth);
+  const contextHeight = answerContextHeight(question, result, showTaxonomy, paneWidth);
   const reviewHeight = Math.max(5, viewportHeight - contextHeight - 1);
   const pageSize = Math.max(4, viewportHeight - 2);
   const [activePane, setActivePane] = useState<ResultPane>("review");
@@ -91,7 +92,7 @@ export function ResultScreen({ question, result, onNext }: ResultScreenProps) {
             <PaneTitle active={activePane === "review"}>Answer & Explanation</PaneTitle>
 
             <Box marginTop={1}>
-              <AnswerContext question={question} result={result} />
+              <AnswerContext question={question} result={result} showTaxonomy={showTaxonomy} />
             </Box>
 
             <Box marginTop={1}>
@@ -111,13 +112,17 @@ export function ResultScreen({ question, result, onNext }: ResultScreenProps) {
   );
 }
 
-function AnswerContext({ question, result }: { question: Question; result: AnswerRecord }) {
+function AnswerContext({ question, result, showTaxonomy }: { question: Question; result: AnswerRecord; showTaxonomy: boolean }) {
   return (
-    <Text>
-      <Text bold color="cyan">{formatDuration(result.attempt.durationSeconds)}</Text>
-      <Text color="gray">  ·  </Text>
-      <Text color={difficultyColorMap[question.difficulty]}>{difficultyLabels[question.difficulty]} question</Text>
-    </Text>
+    <Box flexDirection="column">
+      <Text>
+        <Text bold color="cyan">{formatDuration(result.attempt.durationSeconds)}</Text>
+        <Text color="gray">  ·  </Text>
+        <Text color={difficultyColorMap[question.difficulty]}>{difficultyLabels[question.difficulty]} question</Text>
+      </Text>
+      {showTaxonomy && <Text><Text color="magenta">{question.domain}</Text><Text color="gray">  {domainLabels[question.domain]}</Text></Text>}
+      {showTaxonomy && <Text><Text color="blue">{question.skill}</Text><Text color="gray">  {skillLabels[question.skill]}</Text></Text>}
+    </Box>
   );
 }
 
@@ -150,7 +155,10 @@ function ReviewContent({ question, result, width, height, scroll }: ReviewConten
   );
 }
 
-function answerContextHeight(question: Question, result: AnswerRecord, width: number): number {
-  const line = `${formatDuration(result.attempt.durationSeconds)}  ·  ${difficultyLabels[question.difficulty]} question`;
-  return Math.max(1, Math.ceil(Bun.stringWidth(line) / width));
+function answerContextHeight(question: Question, result: AnswerRecord, showTaxonomy: boolean, width: number): number {
+  const lines = [
+    `${formatDuration(result.attempt.durationSeconds)}  ·  ${difficultyLabels[question.difficulty]} question`,
+    ...showTaxonomy ? [`${question.domain}  ${domainLabels[question.domain]}`, `${question.skill}  ${skillLabels[question.skill]}`] : [],
+  ];
+  return lines.reduce((height, line) => height + Math.max(1, Math.ceil(Bun.stringWidth(line) / width)), 0);
 }
