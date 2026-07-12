@@ -14,7 +14,7 @@ import {
   unansweredQuestions,
   type QuestionQueue,
 } from "@/practice/question-queue.ts";
-import { loadPreferences, type ReviewPreferences } from "@/preferences/index.ts";
+import { ensurePreferences, loadPreferences, type ResultDetail, type ReviewPreferences } from "@/preferences/index.ts";
 import type { AnswerRecord, Attempt, AttemptEvent } from "@/progress/attempt.ts";
 import type { Focus } from "@/questions/focus.ts";
 import { defaultFocus } from "@/questions/focus.ts";
@@ -74,7 +74,7 @@ function StudyShell({ enterSession }: { enterSession: SessionEntry }) {
   const [result, setResult] = useState<AnswerRecord>();
   const [notice, setNotice] = useState<string>();
   const [error, setError] = useState<string>();
-  const [showTaxonomy, setShowTaxonomy] = useState(false);
+  const [resultDetail, setResultDetail] = useState<ResultDetail>("standard");
   const [queue, setQueue] = useState<QuestionQueue>(() => unansweredQuestions());
 
   const showNextQuestion = useCallback(async (
@@ -104,11 +104,12 @@ function StudyShell({ enterSession }: { enterSession: SessionEntry }) {
     setView("loading");
     try {
       ensureDatabase();
+      ensurePreferences();
       const currentAttempts = loadAttempts();
       const currentEvents = loadAttemptEvents();
       const currentFocus = loadFocus();
       const preferences = loadPreferences();
-      setShowTaxonomy(preferences.display.showTaxonomy);
+      setResultDetail(preferences.display.resultDetail);
       await loadQuestionBank();
       const status = await questionBankStatus();
       setAttempts(currentAttempts);
@@ -214,7 +215,7 @@ function StudyShell({ enterSession }: { enterSession: SessionEntry }) {
       />
     );
   } else if (view === "result" && question && result) {
-    content = <ResultScreen question={question} result={result} showTaxonomy={showTaxonomy} onNext={() => void showNextQuestion()} />;
+    content = <ResultScreen question={question} result={result} resultDetail={resultDetail} onNext={() => void showNextQuestion()} />;
   } else if (view === "history") {
     content = <HistoryScreen attempts={attempts.values()} notice={notice} onOpen={(attempt) => void openAttempt(attempt)} />;
   } else if (view === "summary") {

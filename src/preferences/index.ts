@@ -1,6 +1,11 @@
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { preferencesPath } from "@/local-data/paths.ts";
+
+export const resultDetailLevels = ["brief", "standard", "detailed"] as const;
+export type ResultDetail = typeof resultDetailLevels[number];
+export const bundledPreferencesSchemaPath = fileURLToPath(new URL("./preferences.schema.json", import.meta.url));
 
 export type ReviewPreferences = {
   minimumDays: number;
@@ -10,7 +15,7 @@ export type ReviewPreferences = {
 export type Preferences = {
   review: ReviewPreferences;
   display: {
-    showTaxonomy: boolean;
+    resultDetail: ResultDetail;
   };
 };
 
@@ -20,9 +25,14 @@ export const defaultPreferences: Preferences = {
     minimumAnswersAfter: 100,
   },
   display: {
-    showTaxonomy: false,
+    resultDetail: "standard",
   },
 };
+
+export function ensurePreferences(path = preferencesPath): void {
+  if (existsSync(path)) savePreferences(loadPreferences(path), path);
+  else savePreferences(defaultPreferences, path);
+}
 
 export function loadPreferences(path = preferencesPath): Preferences {
   let source: string;
@@ -43,27 +53,42 @@ export function loadPreferences(path = preferencesPath): Preferences {
 export function savePreferences(preferences: Preferences, path = preferencesPath): void {
   const normalized = parsePreferences(preferences);
   mkdirSync(dirname(path), { recursive: true });
+  writePreferencesSchema(path);
   const temporaryPath = `${path}.${process.pid}.tmp`;
-  writeFileSync(temporaryPath, `${JSON.stringify(normalized, null, 2)}\n`, { mode: 0o600 });
+  const document = { $schema: `./${basename(schemaPathFor(path))}`, ...normalized };
+  writeFileSync(temporaryPath, `${JSON.stringify(document, null, 2)}\n`, { mode: 0o600 });
   renameSync(temporaryPath, path);
 }
 
 export function parsePreferences(value: unknown): Preferences {
   const root = record(value, "preferences");
-  knownKeys(root, ["review", "display"], "preferences");
+  knownKeys(root, ["$schema", "review", "display"], "preferences");
+  if (root.$schema !== undefined && typeof root.$schema !== "string") throw new Error("$schema must be a string");
   const review = root.review === undefined ? {} : record(root.review, "review");
   knownKeys(review, ["minimumDays", "minimumAnswersAfter"], "review");
   const display = root.display === undefined ? {} : record(root.display, "display");
-  knownKeys(display, ["showTaxonomy"], "display");
+  knownKeys(display, ["resultDetail", "showTaxonomy"], "display");
+  const legacyTaxonomy = optionalBoolean(display.showTaxonomy, "display.showTaxonomy");
   return {
     review: {
       minimumDays: nonNegativeInteger(review.minimumDays, "review.minimumDays", defaultPreferences.review.minimumDays),
       minimumAnswersAfter: nonNegativeInteger(review.minimumAnswersAfter, "review.minimumAnswersAfter", defaultPreferences.review.minimumAnswersAfter),
     },
     display: {
-      showTaxonomy: boolean(display.showTaxonomy, "display.showTaxonomy", defaultPreferences.display.showTaxonomy),
+      resultDetail: resultDetail(display.resultDetail, legacyTaxonomy),
     },
   };
+}
+
+function writePreferencesSchema(path: string): void {
+  const schemaPath = schemaPathFor(path);
+  const temporaryPath = `${schemaPath}.${process.pid}.tmp`;
+  writeFileSync(temporaryPath, readFileSync(bundledPreferencesSchemaPath), { mode: 0o600 });
+  renameSync(temporaryPath, schemaPath);
+}
+
+function schemaPathFor(path: string): string {
+  return join(dirname(path), "preferences.schema.json");
 }
 
 function record(value: unknown, name: string): Record<string, unknown> {
@@ -82,10 +107,21 @@ function nonNegativeInteger(value: unknown, name: string, fallback: number): num
   return value as number;
 }
 
-function boolean(value: unknown, name: string, fallback: boolean): boolean {
-  if (value === undefined) return fallback;
+function optionalBoolean(value: unknown, name: string): boolean | undefined {
+  if (value === undefined) return undefined;
   if (typeof value !== "boolean") throw new Error(`${name} must be a boolean`);
   return value;
+}
+
+function resultDetail(value: unknown, legacyTaxonomy: boolean | undefined): ResultDetail {
+  if (value === undefined) {
+    if (legacyTaxonomy !== undefined) return legacyTaxonomy ? "detailed" : "standard";
+    return defaultPreferences.display.resultDetail;
+  }
+  if (!resultDetailLevels.includes(value as ResultDetail)) {
+    throw new Error(`display.resultDetail must be one of: ${resultDetailLevels.join(", ")}`);
+  }
+  return value as ResultDetail;
 }
 
 function message(value: unknown): string {

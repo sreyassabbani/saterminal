@@ -66,25 +66,39 @@ This prevents an immediate retry from masquerading as durable recall. Change eit
 sat config set --minimum-days 14
 sat config set --minimum-answers-after 200
 sat config set --minimum-days 14 --minimum-answers-after 200
-sat config set --taxonomy show
 sat config reset
 ```
+
+## Result detail
+
+Choose how much learner-facing context appears after an answer:
+
+```sh
+sat config set --result-detail brief     # time
+sat config set --result-detail standard  # time and difficulty (default)
+sat config set --result-detail detailed  # time, difficulty, and taxonomy
+```
+
+The verdict, answer choices, and explanation remain visible at every level. Internal question IDs stay available through `sat show`, not the result screen.
+
+## Preferences file
 
 You can also edit `~/.saterminal/preferences.json` directly:
 
 ```json
 {
+  "$schema": "./preferences.schema.json",
   "review": {
     "minimumDays": 7,
     "minimumAnswersAfter": 100
   },
   "display": {
-    "showTaxonomy": false
+    "resultDetail": "standard"
   }
 }
 ```
 
-Set `display.showTaxonomy` to `true`, or run `sat config set --taxonomy show`, to include taxonomy codes and labels on answer results. Omitted values use their defaults. Unknown, negative, fractional, or malformed values are rejected with the path to the invalid file.
+Set `display.resultDetail` to `brief`, `standard`, or `detailed` to control answer-result context. Brief shows time, standard adds difficulty, and detailed adds taxonomy codes and labels. The adjacent JSON Schema provides editor validation, descriptions, and completions. Omitted values use their defaults. Unknown, negative, fractional, or malformed values are rejected with the path to the invalid file.
 
 ## Interactive keys
 
@@ -108,6 +122,7 @@ Questions containing HTML tables can be opened on Practice SAT with `o`; the res
 
 - `~/.saterminal/sat.db` contains focus, latest outcomes, and answer events.
 - `~/.saterminal/preferences.json` contains optional review-spacing and display preferences.
+- `~/.saterminal/preferences.schema.json` provides local editor validation and completions.
 - `~/.saterminal/cache/question-bank.json` is the local materialized question bank.
 - `data/question-bank.json.zst` is the bundled offline source used to create that cache.
 

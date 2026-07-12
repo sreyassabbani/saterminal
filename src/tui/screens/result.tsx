@@ -1,6 +1,7 @@
 import { Box, Text, useInput } from "ink";
 import { useState } from "react";
 import type { AnswerRecord, Outcome } from "@/progress/attempt.ts";
+import type { ResultDetail } from "@/preferences/index.ts";
 import type { Difficulty, Question } from "@/questions/question.ts";
 import { difficultyLabels, domainLabels, skillLabels } from "@/questions/taxonomy.ts";
 import { formatDuration } from "@/text/duration.ts";
@@ -15,7 +16,7 @@ type ResultPane = "question" | "review";
 type ResultScreenProps = {
   question: Question;
   result: AnswerRecord;
-  showTaxonomy: boolean;
+  resultDetail: ResultDetail;
   onNext: () => void;
 };
 
@@ -42,12 +43,12 @@ const difficultyColorMap: Record<Difficulty, "red" | "yellow" | "green"> = {
   "H": "red",
 };
 
-export function ResultScreen({ question, result, showTaxonomy, onNext }: ResultScreenProps) {
+export function ResultScreen({ question, result, resultDetail, onNext }: ResultScreenProps) {
   const { width, height } = useTerminalSize();
   const sideBySide = width >= 80;
   const paneWidth = sideBySide ? Math.floor((width - 3) / 2) : width;
   const viewportHeight = Math.max(5, height - 8);
-  const contextHeight = answerContextHeight(question, result, showTaxonomy, paneWidth);
+  const contextHeight = answerContextHeight(question, result, resultDetail, paneWidth);
   const reviewHeight = Math.max(5, viewportHeight - contextHeight - 1);
   const pageSize = Math.max(4, viewportHeight - 2);
   const [activePane, setActivePane] = useState<ResultPane>("review");
@@ -92,7 +93,7 @@ export function ResultScreen({ question, result, showTaxonomy, onNext }: ResultS
             <PaneTitle active={activePane === "review"}>Answer & Explanation</PaneTitle>
 
             <Box marginTop={1}>
-              <AnswerContext question={question} result={result} showTaxonomy={showTaxonomy} />
+              <AnswerContext question={question} result={result} resultDetail={resultDetail} />
             </Box>
 
             <Box marginTop={1}>
@@ -112,13 +113,15 @@ export function ResultScreen({ question, result, showTaxonomy, onNext }: ResultS
   );
 }
 
-function AnswerContext({ question, result, showTaxonomy }: { question: Question; result: AnswerRecord; showTaxonomy: boolean }) {
+function AnswerContext({ question, result, resultDetail }: { question: Question; result: AnswerRecord; resultDetail: ResultDetail }) {
+  const showDifficulty = resultDetail !== "brief";
+  const showTaxonomy = resultDetail === "detailed";
   return (
     <Box flexDirection="column">
       <Text>
         <Text bold color="cyan">{formatDuration(result.attempt.durationSeconds)}</Text>
-        <Text color="gray">  ·  </Text>
-        <Text color={difficultyColorMap[question.difficulty]}>{difficultyLabels[question.difficulty]} question</Text>
+        {showDifficulty && <Text color="gray">  ·  </Text>}
+        {showDifficulty && <Text color={difficultyColorMap[question.difficulty]}>{difficultyLabels[question.difficulty]} difficulty</Text>}
       </Text>
       {showTaxonomy && <Text><Text color="magenta">{question.domain}</Text><Text color="gray">  {domainLabels[question.domain]}</Text></Text>}
       {showTaxonomy && <Text><Text color="blue">{question.skill}</Text><Text color="gray">  {skillLabels[question.skill]}</Text></Text>}
@@ -155,9 +158,11 @@ function ReviewContent({ question, result, width, height, scroll }: ReviewConten
   );
 }
 
-function answerContextHeight(question: Question, result: AnswerRecord, showTaxonomy: boolean, width: number): number {
+function answerContextHeight(question: Question, result: AnswerRecord, resultDetail: ResultDetail, width: number): number {
+  const showDifficulty = resultDetail !== "brief";
+  const showTaxonomy = resultDetail === "detailed";
   const lines = [
-    `${formatDuration(result.attempt.durationSeconds)}  ·  ${difficultyLabels[question.difficulty]} question`,
+    `${formatDuration(result.attempt.durationSeconds)}${showDifficulty ? `  ·  ${difficultyLabels[question.difficulty]} difficulty` : ""}`,
     ...showTaxonomy ? [`${question.domain}  ${domainLabels[question.domain]}`, `${question.skill}  ${skillLabels[question.skill]}`] : [],
   ];
   return lines.reduce((height, line) => height + Math.max(1, Math.ceil(Bun.stringWidth(line) / width)), 0);

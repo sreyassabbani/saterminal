@@ -13,9 +13,9 @@ export default function ConfigCommand() {
       "",
       `review minimum days           ${preferences.review.minimumDays}`,
       `review minimum answers after  ${preferences.review.minimumAnswersAfter}`,
-      `result taxonomy               ${preferences.display.showTaxonomy ? "shown" : "hidden"}`,
+      `result detail                 ${preferences.display.resultDetail}`,
       "",
-      "Update with: sat config set --minimum-days 7 --minimum-answers-after 100 --taxonomy show",
+      "Update with: sat config set --minimum-days 7 --minimum-answers-after 100 --result-detail detailed",
     ].join("\n")}</Text>
   );
 }

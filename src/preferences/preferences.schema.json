@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "saterminal preferences",
+  "description": "Local preferences for SAT practice and answer review.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Editor schema association. Managed by saterminal."
+    },
+    "review": {
+      "type": "object",
+      "description": "Spacing requirements for missed and corrected questions.",
+      "additionalProperties": false,
+      "properties": {
+        "minimumDays": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 7,
+          "description": "Days before a question becomes eligible for review."
+        },
+        "minimumAnswersAfter": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 100,
+          "description": "Later answers required before a question becomes eligible for review."
+        }
+      }
+    },
+    "display": {
+      "type": "object",
+      "description": "Controls learner-facing information in the terminal interface.",
+      "additionalProperties": false,
+      "properties": {
+        "resultDetail": {
+          "type": "string",
+          "enum": ["brief", "standard", "detailed"],
+          "default": "standard",
+          "description": "Answer-result context: brief shows time; standard adds difficulty; detailed adds taxonomy codes and labels."
+        }
+      }
+    }
+  }
+}

@@ -53,14 +53,19 @@ describe("cli", () => {
     expect(result.stderr).toContain("question not-a-question was not found");
   });
 
-  test("updates review preferences through the nested config command", async () => {
-    const result = await run("config", "set", "--minimum-days", "14", "--minimum-answers-after", "250", "--taxonomy", "show");
+  test("updates review and result-detail preferences through the nested config command", async () => {
+    const result = await run("config", "set", "--minimum-days", "14", "--minimum-answers-after", "250", "--result-detail", "detailed");
     const saved = await Bun.file(join(result.home, ".saterminal", "preferences.json")).json();
 
     expect(result.code).toBe(0);
     expect(result.stdout).toContain("14 days · 250 later answers");
-    expect(result.stdout).toContain("result taxonomy: shown");
-    expect(saved).toEqual({ review: { minimumDays: 14, minimumAnswersAfter: 250 }, display: { showTaxonomy: true } });
+    expect(result.stdout).toContain("result detail: detailed");
+    expect(saved).toEqual({
+      $schema: "./preferences.schema.json",
+      review: { minimumDays: 14, minimumAnswersAfter: 250 },
+      display: { resultDetail: "detailed" },
+    });
+    expect(await Bun.file(join(result.home, ".saterminal", "preferences.schema.json")).exists()).toBe(true);
   });
 
   test("emits clean machine-readable reports", async () => {
