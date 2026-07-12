@@ -1,17 +1,19 @@
 {
   "name": "saterminal",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "type": "module",
   "bin": {
     "sat": "src/cli/index.ts"
   },
   "files": [
     "data",
-    "src"
+    "src",
+    "tsconfig.json"
   ],
   "scripts": {
     "dev": "bun run src/cli/index.ts",
     "start": "bun run src/cli/index.ts",
+    "nix:deps": "bun2nix -o nix/bun.nix",
     "update-bank": "bun run scripts/update-question-bank.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
@@ -30,6 +32,7 @@
     "@types/he": "^1.2.3",
     "@types/react": "19.2.0",
     "p-limit": "^7.3.0",
+    "react-devtools-core": "7.0.1",
     "typescript": "^7.0.2"
   }
 }

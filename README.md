@@ -23,6 +23,13 @@ bun install
 bun run dev
 ```
 
+Build and run the packaged application directly with Nix:
+
+```sh
+nix build
+./result/bin/sat --help
+```
+
 The first launch asks before creating `~/.saterminal`. Choose a focus, press Enter, and start answering. Everything needed for practice is already in the package.
 
 Practice deliberately hides difficulty, domain, and skill while a question is active. The header shows only the running timer. After submitting, the answer screen restores the complete question beside the marked choices and explanation, then reveals timing and question metadata for review.
@@ -166,4 +173,12 @@ This is the only normal workflow that needs the network. It downloads Practice S
 nix develop -c bun run typecheck
 nix develop -c bun test
 nix develop -c bun run src/cli/index.ts --help
+nix build
+./result/bin/sat --version
+```
+
+When `bun.lock` changes, regenerate the committed Nix dependency expression before building:
+
+```sh
+nix develop -c bun run nix:deps
 ```
