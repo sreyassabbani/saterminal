@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { hasHtmlTable, htmlToText, parseHtmlSegments } from "@/text/html.ts";
 import { wrapSegments, wrapText } from "@/text/wrap.ts";
+import { questionContentLayout } from "@/tui/components/question-content.tsx";
 
 describe("text", () => {
   test("converts the API html subset into terminal text", () => {
@@ -62,6 +63,22 @@ describe("text", () => {
     const segments = parseHtmlSegments("<u>This insightful depiction of a preteen girl</u>");
     const lines = wrapSegments(segments, 20);
     expect(lines.flat().some((segment) => segment.style.underline)).toBe(true);
+  });
+
+  test("keeps underlined evidence styled in the question viewport", () => {
+    const lines = questionContentLayout({
+      id: "underlined",
+      sourceId: "source-underlined",
+      difficulty: "M",
+      domain: "CAS",
+      skill: "CTC",
+      passage: "<p>Text 1: <u>Hull's interpretation is incomplete.</u></p><p>Text 2: New evidence.</p>",
+      prompt: "<p>How would Hull's team respond?</p>",
+      choices: [],
+      correctAnswers: [],
+    }, 40);
+
+    expect(lines.flat().some((segment) => segment.style.underline && segment.text.includes("Hull's interpretation"))).toBe(true);
   });
 
   test("collapses spacer paragraphs and decodes accented entities in dual-text stimuli", () => {

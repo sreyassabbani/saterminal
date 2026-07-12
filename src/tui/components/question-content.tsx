@@ -1,6 +1,7 @@
 import { Box, Text } from "ink";
-import { htmlToText } from "@/text/html.ts";
-import { wrapText } from "@/text/wrap.ts";
+import { htmlToText, parseHtmlSegments } from "@/text/html.ts";
+import type { TextSegment } from "@/text/rich-text.ts";
+import { wrapSegments, wrapText } from "@/text/wrap.ts";
 import type { Question } from "@/questions/question.ts";
 
 export type ChoiceLine = {
@@ -25,16 +26,37 @@ type AnswerChoicesProps = ViewportProps & {
 };
 
 export function QuestionContent({ question, width, height, scroll = 0 }: ViewportProps) {
-  const passage = htmlToText(question.passage ?? "");
-  const prompt = htmlToText(question.prompt);
-  const lines = [
-    ...(passage ? wrapText(passage, width) : []),
-    ...(passage ? [""] : []),
-    ...wrapText(prompt, width),
-  ];
+  const lines = questionContentLayout(question, width);
   const maximum = Math.max(0, lines.length - height);
   const start = Math.max(0, Math.min(scroll, maximum));
-  return <Text>{lines.slice(start, start + height).join("\n")}</Text>;
+  return (
+    <Box flexDirection="column">
+      {lines.slice(start, start + height).map((line, lineIndex) => (
+        <Text key={`${start}-${lineIndex}`}>
+          {line.length === 0 ? " " : line.map((segment, segmentIndex) => (
+            <Text
+              key={segmentIndex}
+              bold={segment.style.bold}
+              italic={segment.style.italic}
+              underline={segment.style.underline}
+            >
+              {segment.text}
+            </Text>
+          ))}
+        </Text>
+      ))}
+    </Box>
+  );
+}
+
+export function questionContentLayout(question: Question, width: number): TextSegment[][] {
+  const passage = parseHtmlSegments(question.passage ?? "");
+  const prompt = parseHtmlSegments(question.prompt);
+  return [
+    ...(passage.length ? wrapSegments(passage, width) : []),
+    ...(passage.length ? [[]] : []),
+    ...wrapSegments(prompt, width),
+  ];
 }
 
 export function AnswerChoices({ question, selected, width, height, scroll = 0 }: AnswerChoicesProps) {
