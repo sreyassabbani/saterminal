@@ -5,7 +5,7 @@ export type FormatSettings = { mode: OutputMode; color: boolean };
 
 export const ansi = {
   reset: "\x1b[0m", bold: "\x1b[1m", gray: "\x1b[90m", red: "\x1b[31m",
-  green: "\x1b[32m", brightGreen: "\x1b[92m", yellow: "\x1b[33m", cyan: "\x1b[36m",
+  green: "\x1b[32m", yellow: "\x1b[33m", cyan: "\x1b[36m",
 };
 
 export function table(headers: string[], rows: (string | number)[][]): string {
@@ -16,7 +16,7 @@ export function table(headers: string[], rows: (string | number)[][]): string {
 
 export function meter(ratio: number, width: number, settings: FormatSettings, color: string): string {
   const full = Math.round(Math.max(0, Math.min(1, ratio)) * width);
-  return paint("━".repeat(full), settings, color) + paint("─".repeat(width - full), settings, ansi.gray);
+  return paint("█".repeat(full), settings, color) + paint("░".repeat(width - full), settings, ansi.gray);
 }
 
 export function percent(value: number): string {

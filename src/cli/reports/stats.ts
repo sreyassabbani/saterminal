@@ -2,8 +2,6 @@ import { ansi, duration, meter, paint, percent, table, type FormatSettings } fro
 import type { Activity } from "@/progress/activity.ts";
 import type { ProgressStatistics } from "@/progress/statistics.ts";
 
-const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
-
 export function formatStats(stats: ProgressStatistics, activity: Activity, settings: FormatSettings): string {
   if (settings.mode === "json") return JSON.stringify({ ...stats, activity: { ...activity, heatmap: activity.days, days: undefined } });
   if (settings.mode === "plain") return table(["metric", "value"], [
@@ -12,70 +10,55 @@ export function formatStats(stats: ProgressStatistics, activity: Activity, setti
   ]);
 
   return [
-    paint("progress", settings, ansi.bold, ansi.cyan),
-    progressSummary(stats, activity, settings),
+    paint("stats", settings, ansi.bold, ansi.cyan),
+    summary(stats, activity, settings),
     "",
-    paint("outcomes", settings, ansi.bold),
-    outcomeRow("correct", stats.correct, stats.answered, ansi.green, settings),
-    outcomeRow("corrected", stats.corrected, stats.answered, ansi.yellow, settings),
-    outcomeRow("incorrect", stats.incorrect, stats.answered, ansi.red, settings),
+    outcome("correct", stats.correct, stats.answered, ansi.green, settings),
+    outcome("incorrect", stats.incorrect, stats.answered, ansi.red, settings),
+    outcome("corrected", stats.corrected, stats.answered, ansi.yellow, settings),
     "",
-    paint("activity", settings, ansi.bold),
-    paint(activitySummary(activity), settings, ansi.gray),
+    activityHeading(activity, settings),
     ...heatmap(activity.days, settings),
-    paint("    □ none   ▪ one   ■ 2–3   ▣ 4+", settings, ansi.gray),
   ].join("\n");
 }
 
-function progressSummary(stats: ProgressStatistics, activity: Activity, settings: FormatSettings): string {
-  const streak = `${activity.streak}-day streak`;
-  const streakStyle = activity.streak ? [ansi.green, ansi.bold] : [ansi.gray];
+function summary(stats: ProgressStatistics, activity: Activity, settings: FormatSettings): string {
   return [
     `${paint(String(stats.answered), settings, ansi.bold)} answered`,
     `${paint(percent(stats.accuracy), settings, accuracyColor(stats.accuracy), ansi.bold)} accuracy`,
-    `${paint(duration(stats.averageSeconds), settings, ansi.cyan)} average`,
-    paint(streak, settings, ...streakStyle),
+    `${paint(duration(stats.averageSeconds), settings, ansi.cyan)} avg`,
+    `${paint(String(activity.streak), settings, ansi.green, ansi.bold)}-day streak`,
   ].join(paint("  ·  ", settings, ansi.gray));
 }
 
-function outcomeRow(label: string, value: number, total: number, color: string, settings: FormatSettings): string {
+function outcome(label: string, value: number, total: number, color: string, settings: FormatSettings): string {
   const ratio = total ? value / total : 0;
-  return [
-    paint(label.padEnd(10), settings, color, ansi.bold),
-    String(value).padStart(3),
-    percent(ratio).padStart(4),
-    meter(ratio, 20, settings, color),
-  ].join("  ");
+  return `${paint(label.padEnd(10), settings, color, ansi.bold)} ${String(value).padStart(3)}  ${meter(ratio, 20, settings, color)}`;
 }
 
-function activitySummary(activity: Activity): string {
-  const range = activity.days.length
-    ? `${shortDate(activity.days[0].date)} – ${shortDate(activity.days.at(-1)!.date)}`
-    : "no recorded dates";
-  const today = `${activity.todayCount} ${activity.todayCount === 1 ? "answer" : "answers"} today`;
-  return `${range}  ·  ${activity.activeDays} active days  ·  ${today}`;
+function activityHeading(activity: Activity, settings: FormatSettings): string {
+  return [
+    paint("activity", settings, ansi.bold),
+    paint(`${activity.activeDays} days`, settings, ansi.green),
+    paint(`${activity.todayCount} today`, settings, ansi.cyan),
+  ].join(paint("  ·  ", settings, ansi.gray));
 }
 
 function heatmap(days: Activity["days"], settings: FormatSettings): string[] {
   const weeks = Math.ceil(days.length / 7);
-  return weekdays.map((weekday, weekdayIndex) => {
-    const cells = Array.from({ length: weeks }, (_, week) => days[week * 7 + weekdayIndex]?.count ?? 0)
+  return Array.from({ length: 7 }, (_, weekday) => {
+    const label = weekday === 1 ? "Mon" : weekday === 3 ? "Wed" : weekday === 5 ? "Fri" : "   ";
+    const cells = Array.from({ length: weeks }, (_, week) => days[week * 7 + weekday]?.count ?? 0)
       .map((count) => activityCell(count, settings));
-    return `${weekday} ${cells.join(" ")}`;
+    return `${label} ${cells.join(" ")}`;
   });
 }
 
 function activityCell(count: number, settings: FormatSettings): string {
   if (count === 0) return paint("□", settings, ansi.gray);
-  if (count === 1) return paint("▪", settings, ansi.green);
-  if (count <= 3) return paint("■", settings, ansi.green, ansi.bold);
-  return paint("▣", settings, ansi.brightGreen, ansi.bold);
-}
-
-function shortDate(value: string): string {
-  const [, month, day] = value.split("-").map(Number);
-  const names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  return `${names[month - 1]} ${day}`;
+  if (count === 1) return paint("■", settings, ansi.green);
+  if (count <= 3) return paint("■", settings, ansi.cyan);
+  return paint("■", settings, ansi.yellow, ansi.bold);
 }
 
 function accuracyColor(value: number): string {
