@@ -1,3 +1,4 @@
+import wrapAnsi from "wrap-ansi";
 import { appendSegment, stylesEqual, type TextSegment, type TextStyle } from "@/text/rich-text.ts";
 
 export function wrapSegments(segments: TextSegment[], width: number): TextSegment[][] {
@@ -55,5 +56,5 @@ export function wrapSegments(segments: TextSegment[], width: number): TextSegmen
 }
 
 export function wrapText(value: string, width: number): string[] {
-  return Bun.wrapAnsi(value, Math.max(1, width), { hard: false }).split("\n").map((line) => line.trim());
+  return wrapAnsi(value, Math.max(1, width), { hard: false }).split("\n").map((line) => line.trim());
 }

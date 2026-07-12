@@ -25,6 +25,7 @@
     "node-html-parser": "^9.0.0",
     "pastel": "4.0.1",
     "react": "19.2.0",
+    "wrap-ansi": "^9.0.2",
     "zod": "4"
   },
   "devDependencies": {
