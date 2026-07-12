@@ -91,7 +91,7 @@ export function ResultScreen({ question, result, onNext }: ResultScreenProps) {
             <PaneTitle active={activePane === "review"}>Answer & Explanation</PaneTitle>
 
             <Box marginTop={1}>
-              <AnswerSummary question={question} result={result} />
+              <AnswerSummary question={question} result={result} width={paneWidth} />
             </Box>
 
             <Box marginTop={1}>
@@ -111,31 +111,37 @@ export function ResultScreen({ question, result, onNext }: ResultScreenProps) {
   );
 }
 
-function AnswerSummary({ question, result }: { question: Question; result: AnswerRecord }) {
+function AnswerSummary({ question, result, width }: { question: Question; result: AnswerRecord; width: number }) {
+  const compact = width >= 56;
   return (
-    <Box flexDirection="column" gap={1}>
+    <Box flexDirection="column">
       <Text>
-        Selected: <Text bold color={result.correct ? "green" : "red"}>{result.answer}</Text>
+        Yours <Text bold color={result.correct ? "green" : "red"}>{result.answer}</Text>
+        <Text color="gray">  ·  </Text>
+        Correct <Text bold color="green">{question.correctAnswers.join(", ")}</Text>
+        {compact && <Text color="gray">    </Text>}
+        {compact && <Timing question={question} result={result} />}
       </Text>
 
-      <Text>
-        Correct: <Text bold color="green">{question.correctAnswers.join(", ")}</Text>
-      </Text>
+      {!compact && <Timing question={question} result={result} />}
 
       <Text>
-        Time: <Text bold color="cyan">{formatDuration(result.attempt.durationSeconds)}</Text>
+        <Text color="magenta">{question.domain}</Text><Text color="gray">  {domainLabels[question.domain]}</Text>
       </Text>
-
       <Text>
-        Difficulty: <Text bold color={difficultyColorMap[question.difficulty]}>{difficultyLabels[question.difficulty]}</Text>
-      </Text>
-
-      <Text>
-        <Text color="magenta">{question.domain}  {domainLabels[question.domain]}</Text>
-        <Text>  ·  </Text><Text color="blue">{question.skill}  {skillLabels[question.skill]}</Text>
-        <Text>  </Text><Text color="gray">({question.id})</Text>
+        <Text color="blue">{question.skill}</Text><Text color="gray">  {skillLabels[question.skill]}  ·  {question.id}</Text>
       </Text>
     </Box>
+  );
+}
+
+function Timing({ question, result }: { question: Question; result: AnswerRecord }) {
+  return (
+    <Text>
+      <Text bold color="cyan">{formatDuration(result.attempt.durationSeconds)}</Text>
+      <Text color="gray">  ·  </Text>
+      <Text bold color={difficultyColorMap[question.difficulty]}>{difficultyLabels[question.difficulty]}</Text>
+    </Text>
   );
 }
 
@@ -169,12 +175,12 @@ function ReviewContent({ question, result, width, height, scroll }: ReviewConten
 }
 
 function answerSummaryHeight(question: Question, result: AnswerRecord, width: number): number {
+  const compact = width >= 56;
   const lines = [
-    `Selected: ${result.answer}`,
-    `Correct: ${question.correctAnswers.join(", ")}`,
-    `Time: ${formatDuration(result.attempt.durationSeconds)}`,
-    `Difficulty: ${difficultyLabels[question.difficulty]}`,
-    `${question.domain}  ${domainLabels[question.domain]}  ·  ${question.skill}  ${skillLabels[question.skill]}  (${question.id})`,
+    `Yours ${result.answer}  ·  Correct ${question.correctAnswers.join(", ")}${compact ? `    ${formatDuration(result.attempt.durationSeconds)}  ·  ${difficultyLabels[question.difficulty]}` : ""}`,
+    ...compact ? [] : [`${formatDuration(result.attempt.durationSeconds)}  ·  ${difficultyLabels[question.difficulty]}`],
+    `${question.domain}  ${domainLabels[question.domain]}`,
+    `${question.skill}  ${skillLabels[question.skill]}  ·  ${question.id}`,
   ];
-  return lines.reduce((height, line) => height + Math.max(1, Math.ceil(Bun.stringWidth(line) / width)), 0) + 4;
+  return lines.reduce((height, line) => height + Math.max(1, Math.ceil(Bun.stringWidth(line) / width)), 0);
 }
