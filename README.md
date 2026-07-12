@@ -25,6 +25,8 @@ bun run dev
 
 The first launch asks before creating `~/.saterminal`. Choose a focus, press Enter, and start answering. Everything needed for practice is already in the package.
 
+Practice deliberately hides difficulty, domain, and skill while a question is active. The header shows only the running timer. After submitting, the answer screen restores the complete question beside the marked choices and explanation, then reveals timing and question metadata for review.
+
 ## Useful commands
 
 Running `sat` opens normal practice. Reports use the richer terminal layout by default; no `-p` flag is necessary.
@@ -86,12 +88,13 @@ The footer always shows the keys available on the current screen. The common one
 
 | Key | Action |
 | --- | --- |
-| `j` / `k`, arrows | Move through focus options, answers, or history |
-| `Tab`, left/right | Move between focus groups |
+| `j` / `k`, arrows | Move through focus options and answers; scroll the active review pane |
+| `Tab`, left/right | Move between focus groups or question/answer panes |
 | `Space` | Toggle a focus option; pause a running question timer |
 | `Enter` | Start, submit, continue, or open a history item |
 | `A`–`D` | Select an answer directly |
-| `[` / `]`, Page Up/Down | Scroll a long question |
+| `[` / `]`, Page Up/Down | Scroll the active question, answer, or explanation pane |
+| `t` | Show or hide the timer while actively answering |
 | `f` / `h` / `s` / `p` | Focus / history / summary / practice |
 | `q` | Quit |
 
