@@ -121,6 +121,7 @@ Questions containing HTML tables can be opened on Practice SAT with `o`; the res
 ## Local data
 
 - `~/.saterminal/sat.db` contains focus, latest outcomes, and answer events.
+- `~/.saterminal/.ignore` keeps the generated cache out of supporting editor file pickers.
 - `~/.saterminal/preferences.json` contains optional review-spacing and display preferences.
 - `~/.saterminal/preferences.schema.json` provides local editor validation and completions.
 - `~/.saterminal/cache/question-bank.json` is the local materialized question bank.

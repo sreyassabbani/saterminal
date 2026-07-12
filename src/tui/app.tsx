@@ -2,9 +2,10 @@ import { Spinner } from "@inkjs/ui";
 import { Box, Text, useApp, useInput, useStdout } from "ink";
 import { useCallback, useEffect, useState } from "react";
 import { loadFocus, saveFocus } from "@/database/focus-repository.ts";
-import { dataDirectoryExists, ensureDatabase } from "@/database/index.ts";
+import { dataDirectoryExists } from "@/database/index.ts";
 import { loadAttemptEvents, loadAttempts } from "@/database/progress-repository.ts";
 import { dataDirectory, displayPath } from "@/local-data/paths.ts";
+import { ensureLocalData } from "@/local-data/setup.ts";
 import { answerQuestion } from "@/practice/answer-question.ts";
 import {
   emptyQueueMessage,
@@ -14,7 +15,7 @@ import {
   unansweredQuestions,
   type QuestionQueue,
 } from "@/practice/question-queue.ts";
-import { ensurePreferences, loadPreferences, type ResultDetail, type ReviewPreferences } from "@/preferences/index.ts";
+import { loadPreferences, type ResultDetail, type ReviewPreferences } from "@/preferences/index.ts";
 import type { AnswerRecord, Attempt, AttemptEvent } from "@/progress/attempt.ts";
 import type { Focus } from "@/questions/focus.ts";
 import { defaultFocus } from "@/questions/focus.ts";
@@ -103,8 +104,7 @@ function StudyShell({ enterSession }: { enterSession: SessionEntry }) {
   const initialize = useCallback(async () => {
     setView("loading");
     try {
-      ensureDatabase();
-      ensurePreferences();
+      ensureLocalData();
       const currentAttempts = loadAttempts();
       const currentEvents = loadAttemptEvents();
       const currentFocus = loadFocus();

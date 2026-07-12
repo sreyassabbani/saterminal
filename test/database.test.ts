@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
 import { openDatabase } from "@/database/index.ts";
+import { ensureLocalData } from "@/local-data/setup.ts";
 import { loadAttemptEvents, loadAttempts, recordAnswer } from "@/database/progress-repository.ts";
 import { createAnswerRecord } from "@/progress/attempt.ts";
 import type { Question } from "@/questions/question.ts";
@@ -23,6 +24,22 @@ const question: Question = {
 };
 
 describe("database", () => {
+  test("creates local data and a non-destructive cache ignore", () => {
+    const directory = mkdtempSync(join(tmpdir(), "saterminal-setup-"));
+    directories.push(directory);
+
+    ensureLocalData(directory);
+
+    expect(readFileSync(join(directory, ".ignore"), "utf8")).toBe("cache\n");
+    expect(Bun.file(join(directory, "sat.db")).size).toBeGreaterThan(0);
+    expect(Bun.file(join(directory, "preferences.json")).size).toBeGreaterThan(0);
+    expect(Bun.file(join(directory, "preferences.schema.json")).size).toBeGreaterThan(0);
+
+    writeFileSync(join(directory, ".ignore"), "custom\n");
+    ensureLocalData(directory);
+    expect(readFileSync(join(directory, ".ignore"), "utf8")).toBe("custom\n");
+  });
+
   test("commits an answer event and latest attempt together", () => {
     const databasePath = path();
     recordAnswer(createAnswerRecord(undefined, question, "A", 14, new Date("2026-02-01T00:00:00.000Z")), databasePath);
