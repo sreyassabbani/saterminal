@@ -2,6 +2,8 @@
 
 SAT practice that stays on your computer. The app ships with a compressed question bank, works without an account or network connection, and records progress in a local SQLite database.
 
+The project name is styled **saterminal**. The command-line executable is `sat`.
+
 It exists because studying one question at a time should not require downloading worksheets, navigating a website, or looking at difficulty metadata before answering.
 
 ## Get started
