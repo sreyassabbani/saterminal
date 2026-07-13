@@ -1,6 +1,6 @@
 import { Spinner } from "@inkjs/ui";
 import { Box, Text, useApp, useInput, useStdout } from "ink";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { loadFocus, saveFocus } from "@/database/focus-repository.ts";
 import { dataDirectoryExists } from "@/database/index.ts";
 import { loadAttemptEvents, loadAttempts } from "@/database/progress-repository.ts";
@@ -67,6 +67,7 @@ function StudyShell({ enterSession }: { enterSession: SessionEntry }) {
   const { exit } = useApp();
   const { stdout } = useStdout();
   const terminal = useTerminalSize();
+  const [terminalReady, setTerminalReady] = useState(!stdout.isTTY);
   const [view, setView] = useState<View>("loading");
   const [focus, setFocus] = useState<Focus>(defaultFocus);
   const [attempts, setAttempts] = useState<Map<string, Attempt>>(() => new Map());
@@ -151,9 +152,10 @@ function StudyShell({ enterSession }: { enterSession: SessionEntry }) {
       .catch((cause) => { setError(message(cause)); setView("error"); });
   }, [initialize]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!stdout.isTTY) return;
     stdout.write("\x1b[?1049h\x1b[?25l");
+    setTerminalReady(true);
     return () => { stdout.write("\x1b[?25h\x1b[?1049l"); };
   }, [stdout]);
 
@@ -235,6 +237,7 @@ function StudyShell({ enterSession }: { enterSession: SessionEntry }) {
     content = <Spinner label="Loading local SAT data" />;
   }
 
+  if (!terminalReady) return null;
   return <Box width={terminal.width} height={terminal.height}>{content}</Box>;
 }
 
