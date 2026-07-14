@@ -1,11 +1,13 @@
 import { Box, Text } from "ink";
-import type { Attempt } from "@/progress/attempt.ts";
+import { activity } from "@/progress/activity.ts";
+import type { Attempt, AttemptEvent } from "@/progress/attempt.ts";
 import { progressStatistics } from "@/progress/statistics.ts";
 import { Screen } from "@/tui/components/chrome.tsx";
 
-export function SummaryScreen({ attempts }: { attempts: Iterable<Attempt> }) {
+export function SummaryScreen({ attempts, events }: { attempts: Iterable<Attempt>; events: readonly AttemptEvent[] }) {
   const stats = progressStatistics(attempts);
-  const rows = [["answered", stats.answered], ["correct", stats.correct], ["incorrect", stats.incorrect], ["corrected", stats.corrected], ["accuracy", `${Math.round(stats.accuracy * 100)}%`], ["average", `${stats.averageSeconds.toFixed(1)}s`]] as const;
+  const currentActivity = activity(events);
+  const rows = [["questions", stats.answered], ["answers", currentActivity.totalAnswers], ["correct", stats.correct], ["incorrect", stats.incorrect], ["corrected", stats.corrected], ["accuracy", `${Math.round(stats.accuracy * 100)}%`], ["average", `${stats.averageSeconds.toFixed(1)}s`], ["streak", `${currentActivity.streak} days`], ["today", currentActivity.todayCount], ["active days", currentActivity.activeDays]] as const;
   return (
     <Screen title="stats" detail={`${stats.mastered}/${stats.answered} mastered`}>
       <Box flexDirection="column">

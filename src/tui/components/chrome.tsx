@@ -1,7 +1,7 @@
 import { Box, Text, useStdout } from "ink";
 import type { ReactNode } from "react";
 
-const globalShortcuts = "f focus · h history · s stats · p practice · q quit";
+const globalShortcuts = "m home · f focus · h history · s stats · p practice · q quit";
 
 type ScreenProps = {
   title: string;
