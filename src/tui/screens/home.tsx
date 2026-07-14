@@ -47,7 +47,6 @@ export function HomeScreen({ stats, activity, focus, preferences, bankSize, revi
     <Screen title="home" detail={`${bankSize} available offline`} footer="j/k move · enter open · q quit" globalNavigation={false}>
       <Text>
         <Text bold color="cyan">{stats.answered}</Text><Text color="gray"> questions</Text>
-        <Text color="gray">  ·  </Text><Text bold>{activity.totalAnswers}</Text><Text color="gray"> answers</Text>
         <Text color="gray">  ·  </Text><Text bold color={accuracyColor(stats.accuracy, stats.answered)}>{stats.answered ? `${Math.round(stats.accuracy * 100)}%` : "—"}</Text><Text color="gray"> accuracy</Text>
         <Text color="gray">  ·  </Text><Text bold color="green">{activity.streak}</Text><Text color="gray">-day streak</Text>
       </Text>
