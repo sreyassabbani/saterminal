@@ -1,48 +1,20 @@
-# saterminal
+# `saterminal`
 
-SAT practice that stays on your computer. The app ships with a compressed question bank, works without an account or network connection, and records progress in a local SQLite database.
+SAT practice that stays on your computer. The app ships with a compressed question bank (3K+ questions, ~2MB), works without an account or network connection, and records progress in a local SQLite database (stored in `~/.saterminal`).
 
-The project name is styled **saterminal**. The command-line executable is `sat`.
-
-It exists because studying one question at a time should not require downloading worksheets, navigating a website, or looking at difficulty metadata before answering.
+If you ever need to study one question at a time, you shouldn't be downloading worksheets or navigating a clunky and ever-changing website. You also don't see question metadata while reading questions too (somehow this is an issue on many SAT practice websites).
 
 ## Get started
 
-The development environment is defined by Nix and uses Bun throughout.
-
-Install the published package with Bun or npm:
-
 ```sh
-bun i -g saterminal
+npm i -g saterminal
 ```
-
-Homebrew users can install the current release from the project tap:
 
 ```sh
 brew install sreyassabbani/tap/saterminal
 ```
 
-```sh
-direnv allow
-bun install
-bun link
-sat
-```
-
-Without direnv, enter the shell explicitly:
-
-```sh
-nix develop
-bun install
-bun run dev
-```
-
-Build and run the packaged application directly with Nix:
-
-```sh
-nix build
-./result/bin/sat --help
-```
+Now, you can run `sat` anywhere.
 
 The first launch asks before creating `~/.saterminal`, then opens a study home for practice, review, progress, and settings. Everything needed for practice is already in the package.
 
@@ -53,14 +25,14 @@ Practice deliberately hides difficulty, domain, and skill while a question is ac
 Running `sat` opens the interactive study home. Reports use the richer terminal layout by default; no `-p` flag is necessary.
 
 ```sh
-sat                 # open practice, review, progress, or settings
-sat review          # revisit eligible missed and corrected questions
-sat weak            # rank the skills that need attention
-sat stats           # accuracy, timing, streak, and activity
-sat history         # recent question outcomes
+sat                              # open practice, review, progress, or settings
+sat review                       # revisit eligible missed and corrected questions
+sat weak                         # rank the skills that need attention
+sat stats                        # accuracy, timing, streak, and activity
+sat history                      # recent question outcomes
 sat history --wrong --since 2w
-sat focus           # inspect the active focus
-sat config          # inspect local preferences
+sat focus                        # inspect the active focus
+sat config                       # inspect local preferences
 ```
 
 Every report also supports:
@@ -172,7 +144,23 @@ src/
 
 Only the bank update script knows the upstream Practice SAT field names. Runtime code works with the normalized question model.
 
-## Maintain the question bank
+## Development
+
+The development environment is defined by Nix and uses Bun throughout. Use either `direnv allow` once or `nix develop`:
+
+```sh
+bun i
+bun dev
+```
+
+Build and run the packaged application directly with Nix:
+
+```sh
+nix build
+./result/bin/sat --help
+```
+
+### Maintain the question bank
 
 Refresh the bundled bank for a future release with:
 
@@ -182,7 +170,7 @@ nix develop -c bun run update-bank
 
 This is the only normal workflow that needs the network. It downloads Practice SAT data, normalizes it, and writes `data/question-bank.json.zst`.
 
-## Verify changes
+### Verify changes
 
 ```sh
 nix develop -c bun run typecheck
