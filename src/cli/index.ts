@@ -1,10 +1,4 @@
 #!/usr/bin/env bun
-import Pastel from "pastel";
+import { runCli } from "./program.tsx";
 
-const cli = new Pastel({
-  name: "sat",
-  description: "Local-first SAT practice in your terminal",
-  importMeta: import.meta,
-});
-
-await cli.run();
+await runCli();

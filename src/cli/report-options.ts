@@ -1,10 +1,9 @@
-import { option } from "pastel";
 import { z } from "zod";
 
 export const reportOptions = z.object({
-  plain: z.boolean().describe(option({ description: "Use a compact plain-text layout" })),
-  json: z.boolean().describe(option({ description: "Output machine-readable JSON" })),
-  color: z.boolean().default(true).describe(option({ description: "Disable ANSI color" })),
+  plain: z.boolean(),
+  json: z.boolean(),
+  color: z.boolean().default(true),
 });
 
 export type ReportOptions = z.infer<typeof reportOptions>;

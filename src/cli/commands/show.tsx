@@ -1,13 +1,12 @@
 import { useApp } from "ink";
 import { useEffect } from "react";
-import { argument } from "pastel";
 import { z } from "zod";
 import { formatQuestion } from "@/cli/reports/question.ts";
 import { findQuestion } from "@/questions/local-bank.ts";
 
 export const description = "Inspect a question by ID";
 export const args = z.tuple([
-  z.string().describe(argument({ name: "id", description: "Question ID" })),
+  z.string(),
 ]);
 
 export default function ShowCommand({ args: [id] }: { args: z.infer<typeof args> }) {

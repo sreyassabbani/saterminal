@@ -1,12 +1,12 @@
 import { mkdir, rename, stat } from "node:fs/promises";
 import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import bundledQuestionBankPath from "@data/question-bank.json.zst" with { type: "file" };
 import { questionBankCachePath } from "@/local-data/paths.ts";
 import type { Focus } from "@/questions/focus.ts";
 import type { Question } from "@/questions/question.ts";
 
 export const questionBankVersion = 2;
-export const bundledQuestionBankPath = fileURLToPath(import.meta.resolve("@data/question-bank.json.zst"));
+export { bundledQuestionBankPath };
 
 export type QuestionBank = {
   version: typeof questionBankVersion;

@@ -13,7 +13,7 @@
     "tsconfig.json"
   ],
   "scripts": {
-    "dev": "bun run src/cli/index.ts",
+    "build": "bun build --compile --minify --outfile dist/sat src/cli/index.ts",
     "start": "bun run src/cli/index.ts",
     "nix:deps": "bun2nix -o nix/bun.nix",
     "update-bank": "bun run scripts/update-question-bank.ts",
@@ -22,10 +22,10 @@
   },
   "dependencies": {
     "@inkjs/ui": "2.0.0",
+    "commander": "14.0.1",
     "he": "^1.2.0",
     "ink": "6.8.0",
     "node-html-parser": "^9.0.0",
-    "pastel": "4.0.1",
     "react": "19.2.0",
     "wrap-ansi": "^9.0.2",
     "zod": "4"

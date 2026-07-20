@@ -1,5 +1,13 @@
 import { defaultTheme, ThemeProvider } from "@inkjs/ui";
-import type { AppProps } from "pastel";
+import type { ComponentType } from "react";
+
+type AppProps = {
+  Component: ComponentType<any>;
+  commandProps: {
+    options: unknown;
+    args: unknown[];
+  };
+};
 
 export default function CommandApp({ Component, commandProps }: AppProps) {
   return (

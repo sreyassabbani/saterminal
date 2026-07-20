@@ -1,4 +1,3 @@
-import { option } from "pastel";
 import { z } from "zod";
 import { CommandAction } from "@/cli/components/command-action.tsx";
 import { displayPath, preferencesPath } from "@/local-data/paths.ts";
@@ -6,9 +5,9 @@ import { loadPreferences, resultDetailLevels, savePreferences } from "@/preferen
 
 export const description = "Update local preferences";
 export const options = z.object({
-  minimumDays: z.number().int().nonnegative().optional().describe(option({ description: "Days before a question can be reviewed", valueDescription: "days" })),
-  minimumAnswersAfter: z.number().int().nonnegative().optional().describe(option({ description: "Later answers required before review", valueDescription: "count" })),
-  resultDetail: z.enum(resultDetailLevels).optional().describe(option({ description: "Set answer-result detail", valueDescription: "level" })),
+  minimumDays: z.number().int().nonnegative().optional(),
+  minimumAnswersAfter: z.number().int().nonnegative().optional(),
+  resultDetail: z.enum(resultDetailLevels).optional(),
 });
 type Options = z.infer<typeof options>;
 

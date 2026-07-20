@@ -1,11 +1,11 @@
 import { chmod, mkdir, rename } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import preferencesSchemaAsset from "./preferences.schema.json" with { type: "file" };
 import { preferencesPath } from "@/local-data/paths.ts";
 
 export const resultDetailLevels = ["brief", "standard", "detailed"] as const;
 export type ResultDetail = typeof resultDetailLevels[number];
-export const bundledPreferencesSchemaPath = fileURLToPath(new URL("./preferences.schema.json", import.meta.url));
+export const bundledPreferencesSchemaPath = preferencesSchemaAsset as unknown as string;
 
 export type ReviewPreferences = {
   minimumDays: number;

@@ -1,4 +1,3 @@
-import { option } from "pastel";
 import { z } from "zod";
 import { loadAttempts } from "@/database/progress-repository.ts";
 import { history } from "@/progress/history.ts";
@@ -8,10 +7,10 @@ import { outputMode, reportColor, reportOptions } from "@/cli/report-options.ts"
 
 export const description = "Show answered questions";
 export const options = reportOptions.extend({
-  wrong: z.boolean().describe(option({ description: "Show currently missed questions" })),
-  corrected: z.boolean().describe(option({ description: "Show corrected questions" })),
-  limit: z.number().int().positive().optional().describe(option({ description: "Limit rows", valueDescription: "count" })),
-  since: z.string().optional().describe(option({ description: "Show rows since an ISO date, 7d, or 2w", valueDescription: "when" })),
+  wrong: z.boolean(),
+  corrected: z.boolean(),
+  limit: z.number().int().positive().optional(),
+  since: z.string().optional(),
 });
 type Options = z.infer<typeof options>;
 
