@@ -146,19 +146,35 @@ Only the bank update script knows the upstream Practice SAT field names. Runtime
 
 ## Development
 
-The development environment is defined by Nix and uses Bun throughout. Use either `direnv allow` once or `nix develop`:
+Enable the development shell once with `direnv allow` or prefix individual commands with `nix develop -c`. Install dependencies before running the application from source:
 
 ```sh
 bun i
-bun dev
+bun run start
 ```
 
-Build and run the packaged application directly with Nix:
+`bun run start` runs the TypeScript entry point directly. Pass CLI arguments with `bun run start -- --help`.
+
+### Build artifacts
+
+Use `bun run build` when you need a standalone native executable for the current machine:
+
+```sh
+bun run build
+./dist/sat --version
+```
+
+This writes a compiled, minified Bun executable to `dist/sat`. It bundles the application, its dependencies, and the Bun runtime.
+
+Use `nix build` to build the reproducible Nix package:
 
 ```sh
 nix build
-./result/bin/sat --help
+./result/bin/sat --version
+nix run . -- --help
 ```
+
+The Nix package does not use `dist/sat`. Instead, `result/bin/sat` is a small launcher that runs the packaged TypeScript source with the packaged Bun runtime and dependencies in the Nix store. Both build paths run the same CLI, but they produce different kinds of artifacts.
 
 ### Maintain the question bank
 
@@ -168,16 +184,21 @@ Refresh the bundled bank for a future release with:
 nix develop -c bun run update-bank
 ```
 
-This is the only normal workflow that needs the network. It downloads Practice SAT data, normalizes it, and writes `data/question-bank.json.zst`.
+This is the only normal source workflow that contacts the upstream Practice SAT service. It downloads, normalizes, and writes `data/question-bank.json.zst`.
 
 ### Verify changes
+
+Verifying once before publishing is enough.
 
 ```sh
 nix develop -c bun run typecheck
 nix develop -c bun test
 nix develop -c bun run src/cli/index.ts --help
+nix develop -c bun run build
+./dist/sat --version
 nix build
 ./result/bin/sat --version
+nix run . -- --version
 ```
 
 When `bun.lock` changes, regenerate the committed Nix dependency expression before building:
