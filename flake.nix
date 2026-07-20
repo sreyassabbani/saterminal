@@ -29,12 +29,14 @@
 
         apps.default = flake-utils.lib.mkApp {
           drv = saterminal;
+          name = "sat";
         };
 
         devShells.default = pkgs.mkShell {
           packages = [
             pkgs.bun
             pkgs.bun2nix
+            pkgs.gh
           ];
         };
       }
