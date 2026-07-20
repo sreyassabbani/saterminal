@@ -1,6 +1,7 @@
 {
   "name": "saterminal",
   "version": "0.6.0",
+  "license": "MIT",
   "type": "module",
   "bin": {
     "sat": "src/cli/index.ts"
