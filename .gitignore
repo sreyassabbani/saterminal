@@ -1,4 +1,3 @@
 .direnv
-node_modules/
-userlocal/
-/result
+node_modules
+result
