@@ -10,6 +10,18 @@ It exists because studying one question at a time should not require downloading
 
 The development environment is defined by Nix and uses Bun throughout.
 
+Install the published package with Bun or npm:
+
+```sh
+bun i -g saterminal
+```
+
+Homebrew users can install the current release from the project tap:
+
+```sh
+brew install sreyassabbani/tap/saterminal
+```
+
 ```sh
 direnv allow
 bun install
