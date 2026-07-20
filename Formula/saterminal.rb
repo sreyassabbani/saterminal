@@ -10,7 +10,7 @@ class Saterminal < Formula
   def install
     system "bun", "install", "--production"
     libexec.install Dir["*"]
-    bin.write_env_script libexec/"src/cli/index.ts", PATH: Formula["bun"].opt_bin
+    (bin/"sat").write_env_script libexec/"src/cli/index.ts", PATH: Formula["bun"].opt_bin
   end
 
   test do
