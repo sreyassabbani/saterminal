@@ -59,10 +59,10 @@ Use `sat <command> --help` for command-specific filters.
 
 A missed or corrected question enters `sat review` only after both default spacing requirements are met:
 
-- at least 7 days have passed since its latest answer;
-- at least 100 answer events were recorded after that answer.
+- at least X days have passed since its latest answer;
+- at least Y answer events were recorded after that answer.
 
-This prevents an immediate retry from masquerading as durable recall. Change either threshold with:
+X and Y are defined in `preferences.json`, and are defaulted to 7 and 100, respectively. This prevents an immediate retry from masquerading as durable recall. Change either threshold with:
 
 ```sh
 sat config set --minimum-days 14
@@ -83,25 +83,6 @@ sat config set --result-detail detailed  # time, difficulty, and taxonomy
 
 The verdict, answer choices, and explanation remain visible at every level. Internal question IDs stay available through `sat show`, not the result screen.
 
-## Preferences file
-
-You can also edit `~/.saterminal/preferences.json` directly:
-
-```json
-{
-  "$schema": "./preferences.schema.json",
-  "review": {
-    "minimumDays": 7,
-    "minimumAnswersAfter": 100
-  },
-  "display": {
-    "resultDetail": "standard"
-  }
-}
-```
-
-Set `display.resultDetail` to `brief`, `standard`, or `detailed` to control answer-result context. Brief shows time, standard adds difficulty, and detailed adds taxonomy codes and labels. The adjacent JSON Schema provides editor validation, descriptions, and completions. Omitted values use their defaults. Unknown, negative, fractional, or malformed values are rejected with the path to the invalid file.
-
 ## Interactive keys
 
 The footer always shows the keys available on the current screen. The common ones are:
@@ -120,25 +101,6 @@ The footer always shows the keys available on the current screen. The common one
 | `q` | Quit |
 
 Questions containing HTML tables can be opened on Practice SAT with `o`; the rest of the practice flow remains local.
-
-## Project map
-
-The source tree is organized by ownership rather than file size:
-
-```text
-src/
-  questions/   normalized SAT questions, taxonomy, focus, local bank
-  progress/    attempts and read-only analysis of recorded study
-  practice/    live study workflows and outcome transitions
-  preferences/ validated local user preferences
-  database/    SQLite schema, migration, and repositories
-  cli/         Pastel command routes and report presentation
-  tui/         Ink application, screens, and terminal components
-  text/        HTML/media normalization and terminal wrapping
-  local-data/  local filesystem locations
-```
-
-Only the bank update script knows the upstream Practice SAT field names. Runtime code works with the normalized question model.
 
 ## Development
 

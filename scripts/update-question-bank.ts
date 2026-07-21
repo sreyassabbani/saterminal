@@ -1,3 +1,5 @@
+// Only the bank update script knows the upstream Practice SAT field names. Runtime code works with the normalized question model.
+
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import pLimit from "p-limit";
