@@ -2,7 +2,7 @@
 
 SAT practice that stays on your computer. The app ships with a compressed question bank (3K+ questions, ~2MB), works without an account or network connection, and records progress in a local SQLite database (stored in `~/.saterminal`).
 
-If you ever need to study one question at a time, you shouldn't be downloading worksheets or navigating a clunky and ever-changing website. You also don't see question metadata while reading questions too (somehow this is an issue on many SAT practice websites).
+If you ever need to study one question at a time, you shouldn't be downloading worksheets or navigating a clunky and ever-changing website. You also don't need to see question metadata while reading questions (somehow this is an issue on many SAT practice websites).
 
 ## Get started
 
@@ -10,15 +10,24 @@ If you ever need to study one question at a time, you shouldn't be downloading w
 npm i -g saterminal
 ```
 
+OR
+
 ```sh
 brew install sreyassabbani/tap/saterminal
 ```
 
 Now, you can run `sat` anywhere.
 
-The first launch asks before creating `~/.saterminal`, then opens a study home for practice, review, progress, and settings. Everything needed for practice is already in the package.
+### Local data
 
-Practice deliberately hides difficulty, domain, and skill while a question is active. The header shows only the running timer. After submitting, the answer screen restores the complete question beside the marked choices and explanation, then reveals timing and question metadata for review.
+The first launch asks before creating `~/.saterminal`.
+
+- `sat.db` contains some settings & user history.
+- `.ignore` keeps the generated cache out of supporting editor file pickers.
+- `preferences.json` & `preferences.schema.json` (you can manipulate these files via the TUI or CLI as well)
+- `cache/question-bank.json` is the local unzipped question bank.
+
+Deleting `~/.saterminal` resets local progress: no cloud account, sync service, server, or auth layer.
 
 ## Useful commands
 
@@ -111,19 +120,6 @@ The footer always shows the keys available on the current screen. The common one
 | `q` | Quit |
 
 Questions containing HTML tables can be opened on Practice SAT with `o`; the rest of the practice flow remains local.
-
-## Local data
-
-- `~/.saterminal/sat.db` contains focus, latest outcomes, and answer events.
-- `~/.saterminal/.ignore` keeps the generated cache out of supporting editor file pickers.
-- `~/.saterminal/preferences.json` contains optional review-spacing and display preferences.
-- `~/.saterminal/preferences.schema.json` provides local editor validation and completions.
-- `~/.saterminal/cache/question-bank.json` is the local materialized question bank.
-- `data/question-bank.json.zst` is the bundled offline source used to create that cache.
-
-Answer recording is transactional: the event history and latest per-question outcome either both commit or both roll back. Existing schema-version-one databases are migrated in place.
-
-Deleting `~/.saterminal` resets local progress. There is deliberately no cloud account, sync service, server, or authentication layer.
 
 ## Project map
 
