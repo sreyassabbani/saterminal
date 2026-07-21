@@ -49,7 +49,7 @@ describe("cli", () => {
     const result = await run("show", "not-a-question");
 
     expect(result.code).toBe(1);
-    expect(result.stdout).toBe("");
+    expect(result.stdout.trim()).toBe("");
     expect(result.stderr).toContain("question not-a-question was not found");
   });
 

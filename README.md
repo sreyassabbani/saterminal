@@ -167,16 +167,16 @@ nix develop -c bun run nix:deps
 
 ### Publishing
 
-CD for `npm` is set up with `.github/workflows/publish.yml`, so all you have to do is:
+CD for `npm` is set up with `.github/workflows/publish.yml`, so release by creating a SemVer tag:
 
-```
+```sh
 bun pm version <increment>
 ```
 
-The increment follows SemVer (major, minor, patch)
+The increment follows SemVer: `major`, `minor`, or `patch`. This commits the version change and creates its annotated `v…` tag.
 
-Then,
+Push the commit and its release tag together:
 
-```
+```sh
 git push --follow-tags
 ```
