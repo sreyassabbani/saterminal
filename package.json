@@ -2,6 +2,10 @@
   "name": "saterminal",
   "version": "0.6.4",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sreyassabbani/saterminal.git"
+  },
   "type": "module",
   "bin": {
     "sat": "src/cli/index.ts"
