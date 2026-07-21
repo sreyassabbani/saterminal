@@ -167,10 +167,16 @@ nix develop -c bun run nix:deps
 
 ### Publishing
 
-CD for `npm` is set up with `.github/workflows/publish.yml`, so all you have to do is push to remote after running:
+CD for `npm` is set up with `.github/workflows/publish.yml`, so all you have to do is:
 
 ```
 bun pm version <increment>
 ```
 
 The increment follows SemVer (major, minor, patch)
+
+Then,
+
+```
+git push --follow-tags
+```
