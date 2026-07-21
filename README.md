@@ -7,14 +7,18 @@ If you ever need to study one question at a time, you shouldn't be downloading w
 ## Get started
 
 ```sh
-npm i -g saterminal
+bun install -g saterminal
 ```
+
+This installation method requires the [Bun runtime](https://bun.sh/). The package is hosted on npm, but plain `npm install -g` does not install Bun.
 
 OR
 
 ```sh
 brew install sreyassabbani/tap/saterminal
 ```
+
+Homebrew installs Bun as a dependency.
 
 Now, you can run `sat` anywhere.
 

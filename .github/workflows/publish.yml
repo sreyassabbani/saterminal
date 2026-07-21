@@ -42,5 +42,14 @@ jobs:
           bun run build
           ./dist/sat --version
 
+      - name: Verify packed CLI
+        run: |
+          package_version="$(node -p 'require("./package.json").version')"
+          package_directory="$(mktemp -d)"
+          package_tarball="$(npm pack --silent --pack-destination "$package_directory")"
+          BUN_INSTALL="$package_directory/bun" bun install --global "$package_directory/$package_tarball"
+          installed_version="$(PATH="$package_directory/bun/bin:$PATH" sat --version)"
+          test "$installed_version" = "$package_version"
+
       - name: Publish
         run: npm publish
