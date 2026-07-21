@@ -5,13 +5,12 @@ on:
     tags:
       - "v*"
 
-permissions:
-  contents: read
-  id-token: write
-
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
       - name: Check out release source
@@ -53,3 +52,61 @@ jobs:
 
       - name: Publish
         run: npm publish
+
+  update-homebrew:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Check out Homebrew tap
+        uses: actions/checkout@v6
+        with:
+          repository: sreyassabbani/homebrew-tap
+          ssh-key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+          path: homebrew-tap
+
+      - name: Update Homebrew formula
+        run: |
+          package_version="$(node -p 'require("./package.json").version')"
+          package_tarball="$(mktemp)"
+          trap 'rm -f "$package_tarball"' EXIT
+
+          published=false
+          for attempt in {1..12}; do
+            if tarball_url="$(npm view "saterminal@$package_version" dist.tarball 2>/dev/null)" &&
+              curl --fail --location --silent --show-error "$tarball_url" --output "$package_tarball"; then
+              published=true
+              break
+            fi
+            echo "Published tarball not available yet (attempt $attempt/12)"
+            sleep 5
+          done
+          test "$published" = true
+
+          tarball_sha256="$(sha256sum "$package_tarball" | cut -d ' ' -f 1)"
+          node .github/scripts/update-homebrew-formula.mjs \
+            homebrew-tap/Formula/saterminal.rb \
+            "$package_version" \
+            "$tarball_sha256"
+
+          if git -C homebrew-tap diff --quiet -- Formula/saterminal.rb; then
+            echo "Homebrew formula already points to saterminal $package_version"
+            exit 0
+          fi
+
+          git -C homebrew-tap config user.name "github-actions[bot]"
+          git -C homebrew-tap config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C homebrew-tap add Formula/saterminal.rb
+          git -C homebrew-tap commit -m "tap: update saterminal to $package_version"
+          git -C homebrew-tap push
