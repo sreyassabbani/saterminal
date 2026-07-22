@@ -292,7 +292,14 @@ function StudyShell({ enterSession }: { enterSession: SessionEntry }) {
   } else if (view === "summary") {
     content = <SummaryScreen attempts={attempts.values()} events={events} />;
   } else if (view === "detail" && detail) {
-    content = <DetailScreen question={detail.question} attempt={detail.attempt} onBack={() => setView("history")} />;
+    content = (
+      <DetailScreen
+        question={detail.question}
+        attempt={detail.attempt}
+        resultDetail={preferences.display.resultDetail}
+        onBack={() => setView("history")}
+      />
+    );
   } else if (view === "error") {
     content = (
       <Box flexDirection="column">
