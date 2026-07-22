@@ -44,7 +44,7 @@ describe("database", () => {
     const databasePath = path();
     recordAnswer(createAnswerRecord(undefined, question, "A", 14, new Date("2026-02-01T00:00:00.000Z")), databasePath);
 
-    expect(loadAttempts(databasePath).get("q1")).toMatchObject({ outcome: "correct", durationSeconds: 14 });
+    expect(loadAttempts(databasePath).get("q1")).toMatchObject({ outcome: "correct", answer: "A", durationSeconds: 14 });
     expect(loadAttemptEvents(databasePath)).toHaveLength(1);
   });
 
@@ -71,5 +71,20 @@ describe("database", () => {
     database.close();
 
     expect(loadAttempts(databasePath).get("kept")).toMatchObject({ outcome: "incorrect", durationSeconds: 42, skill: "WIC" });
+    expect(loadAttempts(databasePath).get("kept")?.answer).toBeUndefined();
+  });
+
+  test("adds selected answers to version-two study data", () => {
+    const databasePath = path();
+    const database = new Database(databasePath);
+    database.exec(`
+      create table attempts (question_id text primary key, outcome text not null, answered_at text not null, duration_seconds integer not null, difficulty text, domain text, skill text);
+      insert into attempts values ('kept', 'incorrect', '2026-01-01T00:00:00.000Z', 42, 'M', 'CAS', 'WIC');
+      pragma user_version = 2;
+    `);
+    database.close();
+
+    expect(loadAttempts(databasePath).get("kept")).toMatchObject({ outcome: "incorrect", durationSeconds: 42 });
+    expect(loadAttempts(databasePath).get("kept")?.answer).toBeUndefined();
   });
 });

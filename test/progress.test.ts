@@ -17,7 +17,7 @@ describe("progress", () => {
     const previous: Attempt = { questionId: "q1", outcome: "incorrect", answeredAt: "2026-01-01T00:00:00.000Z", durationSeconds: 30 };
     const record = createAnswerRecord(previous, question, "B", 12, new Date("2026-01-02T00:00:00.000Z"));
 
-    expect(record).toMatchObject({ correct: true, attempt: { outcome: "corrected" }, event: { correct: true, skill: "WIC" } });
+    expect(record).toMatchObject({ correct: true, attempt: { outcome: "corrected", answer: "B" }, event: { correct: true, skill: "WIC" } });
     expect(nextOutcome("corrected", false)).toBe("corrected");
   });
 

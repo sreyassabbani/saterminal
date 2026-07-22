@@ -1,12 +1,15 @@
 import type { Database } from "bun:sqlite";
 
-export const schemaVersion = 2;
+export const schemaVersion = 3;
 
 export function migrate(database: Database): void {
   const version = userVersion(database);
   if (version > schemaVersion) throw new Error(`Database schema ${version} is newer than this app supports.`);
   if (version === 0) createSchema(database);
-  else if (version === 1) migrateFromVersionOne(database);
+  else {
+    if (version === 1) migrateFromVersionOne(database);
+    if (version <= 2) migrateFromVersionTwo(database);
+  }
 }
 
 export function userVersion(database: Database): number {
@@ -20,6 +23,7 @@ function createSchema(database: Database): void {
     create table attempts (
       question_id text primary key,
       outcome text not null check (outcome in ('correct', 'incorrect', 'corrected')),
+      answer text,
       answered_at text not null,
       duration_seconds integer not null default 0,
       difficulty text,
@@ -45,6 +49,15 @@ function createSchema(database: Database): void {
     create index attempt_events_answered_at_idx on attempt_events(answered_at);
     create index attempt_events_question_id_idx on attempt_events(question_id);
     create index attempts_answered_at_idx on attempts(answered_at);
+    pragma user_version = ${schemaVersion};
+    commit;
+  `);
+}
+
+function migrateFromVersionTwo(database: Database): void {
+  database.exec(`
+    begin;
+    alter table attempts add column answer text;
     pragma user_version = ${schemaVersion};
     commit;
   `);
@@ -94,7 +107,7 @@ function migrateFromVersionOne(database: Database): void {
     create index attempt_events_answered_at_idx on attempt_events(answered_at);
     create index attempt_events_question_id_idx on attempt_events(question_id);
     create index attempts_answered_at_idx on attempts(answered_at);
-    pragma user_version = ${schemaVersion};
+    pragma user_version = 2;
     commit;
   `);
 }

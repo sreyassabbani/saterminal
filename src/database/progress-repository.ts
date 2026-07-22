@@ -6,7 +6,7 @@ import { openDatabase } from "@/database/index.ts";
 
 export function loadAttempts(path = databasePath): Map<string, Attempt> {
   return usingDatabase(path, (database) => {
-    const rows = database.query(`select question_id, outcome, answered_at, duration_seconds, difficulty, domain, skill from attempts order by answered_at`).all() as AttemptRow[];
+    const rows = database.query(`select question_id, outcome, answer, answered_at, duration_seconds, difficulty, domain, skill from attempts order by answered_at`).all() as AttemptRow[];
     return new Map(rows.map((row) => {
       const attempt = readAttempt(row);
       return [attempt.questionId, attempt];
@@ -35,9 +35,9 @@ export function recordAnswer(record: AnswerRecord, path = databasePath): void {
       const { event, attempt } = record;
       database.query(`insert into attempt_events (question_id, correct, answered_at, duration_seconds, difficulty, domain, skill) values (?, ?, ?, ?, ?, ?, ?)`)
         .run(event.questionId, event.correct ? 1 : 0, event.answeredAt, event.durationSeconds, event.difficulty, event.domain, event.skill);
-      database.query(`insert into attempts (question_id, outcome, answered_at, duration_seconds, difficulty, domain, skill) values (?, ?, ?, ?, ?, ?, ?)
-        on conflict(question_id) do update set outcome = excluded.outcome, answered_at = excluded.answered_at, duration_seconds = excluded.duration_seconds, difficulty = excluded.difficulty, domain = excluded.domain, skill = excluded.skill`)
-        .run(attempt.questionId, attempt.outcome, attempt.answeredAt, attempt.durationSeconds, attempt.difficulty ?? null, attempt.domain ?? null, attempt.skill ?? null);
+      database.query(`insert into attempts (question_id, outcome, answer, answered_at, duration_seconds, difficulty, domain, skill) values (?, ?, ?, ?, ?, ?, ?, ?)
+        on conflict(question_id) do update set outcome = excluded.outcome, answer = excluded.answer, answered_at = excluded.answered_at, duration_seconds = excluded.duration_seconds, difficulty = excluded.difficulty, domain = excluded.domain, skill = excluded.skill`)
+        .run(attempt.questionId, attempt.outcome, attempt.answer ?? null, attempt.answeredAt, attempt.durationSeconds, attempt.difficulty ?? null, attempt.domain ?? null, attempt.skill ?? null);
     });
     transaction();
   });
@@ -46,6 +46,7 @@ export function recordAnswer(record: AnswerRecord, path = databasePath): void {
 type AttemptRow = {
   question_id: string;
   outcome: string;
+  answer: string | null;
   answered_at: string;
   duration_seconds: number;
   difficulty: string | null;
@@ -67,6 +68,7 @@ function readAttempt(row: AttemptRow): Attempt {
   return {
     questionId: row.question_id,
     outcome: readOutcome(row.outcome),
+    ...(row.answer ? { answer: row.answer } : {}),
     answeredAt: row.answered_at,
     durationSeconds: row.duration_seconds,
     ...(row.difficulty ? { difficulty: row.difficulty as Difficulty } : {}),

@@ -6,6 +6,7 @@ export type Outcome = "correct" | "incorrect" | "corrected";
 export type Attempt = {
   questionId: string;
   outcome: Outcome;
+  answer?: string;
   answeredAt: string;
   durationSeconds: number;
   difficulty?: Difficulty;
@@ -45,6 +46,7 @@ export function createAnswerRecord(
     attempt: {
       questionId: question.id,
       outcome: nextOutcome(previous?.outcome, correct),
+      answer,
       answeredAt: timestamp,
       durationSeconds,
       difficulty: question.difficulty,
