@@ -126,7 +126,7 @@ bun run build
 ./dist/sat --version
 ```
 
-This writes a compiled, minified Bun executable to `dist/sat`. It bundles the application, its dependencies, and the Bun runtime.
+This writes a compiled, minified Bun executable to `dist/sat`. Use `dist/sat` when you want to test features on a non-tagged tip version. It bundles the application, its dependencies, and the Bun runtime.
 
 Use `nix build` to build the reproducible Nix package:
 
