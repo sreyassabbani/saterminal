@@ -288,7 +288,7 @@ function StudyShell({ enterSession }: { enterSession: SessionEntry }) {
   } else if (view === "result" && question && result) {
     content = <ResultScreen question={question} result={result} resultDetail={preferences.display.resultDetail} onNext={() => void showNextQuestion()} />;
   } else if (view === "history") {
-    content = <HistoryScreen attempts={attempts.values()} notice={notice} onOpen={(attempt) => void openAttempt(attempt)} />;
+    content = <HistoryScreen attempts={[...attempts.values()]} notice={notice} onOpen={(attempt) => void openAttempt(attempt)} />;
   } else if (view === "summary") {
     content = <SummaryScreen attempts={attempts.values()} events={events} />;
   } else if (view === "detail" && detail) {

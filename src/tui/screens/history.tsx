@@ -5,7 +5,7 @@ import { history } from "@/progress/history.ts";
 import { Screen } from "@/tui/components/chrome.tsx";
 import { useTerminalSize } from "@/tui/hooks/use-terminal-size.ts";
 
-export function HistoryScreen({ attempts, notice, onOpen }: { attempts: Iterable<Attempt>; notice?: string; onOpen: (attempt: Attempt) => void }) {
+export function HistoryScreen({ attempts, notice, onOpen }: { attempts: readonly Attempt[]; notice?: string; onOpen: (attempt: Attempt) => void }) {
   const rows = history(attempts);
   const { height } = useTerminalSize();
   const [selected, setSelected] = useState(0);
